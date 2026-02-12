@@ -1,5 +1,13 @@
 # cvmi
 
+## 0.1.10
+
+### Patch Changes
+
+- feat(payments): add CEP-8 payments skill documentation
+
+  Add comprehensive documentation for implementing ContextVM payments using CEP-8 specification. This includes server and client setup guides, built-in Lightning payment rails (NWC and LNbits), custom rail development, and troubleshooting references.
+
 ## 0.1.9
 
 ### Patch Changes
