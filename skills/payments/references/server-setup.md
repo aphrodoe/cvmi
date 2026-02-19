@@ -62,7 +62,7 @@ const resolvePrice: ResolvePriceFn = async ({ capability, request }) => {
 
 Important: the amount returned by `resolvePrice` must be in the unit expected by the selected processor.
 
-## 4) Rejecting requests without charging (CEP-21)
+## 4) Rejecting requests without charging
 
 To reject a priced request before issuing an invoice, return `{ reject: true, message? }`.
 
@@ -77,4 +77,22 @@ const resolvePrice: ResolvePriceFn = async ({ capability, clientPubkey }) => {
 ```
 
 The server emits `notifications/payment_rejected` correlated to the request, and the request is not forwarded.
+
+## 5) Waiving payment (prepaid / subscription)
+
+To allow a request to proceed without requiring payment (e.g., user has prepaid balance or active subscription), return `{ waive: true }`. Optionally include `meta` for auditing.
+
+```ts
+import type { ResolvePriceFn } from '@contextvm/sdk/payments';
+
+const resolvePrice: ResolvePriceFn = async ({ capability, clientPubkey }) => {
+  const balance = await getUserBalance(clientPubkey);
+  if (balance > capability.amount) {
+    return { waive: true, meta: { reason: 'prepaid_balance' } };
+  }
+  return { amount: capability.amount };
+};
+```
+
+When payment is waived, the request is forwarded immediately without emitting `payment_required` or `payment_accepted` notifications.
 

@@ -74,7 +74,7 @@ CEP-8 payments are expressed as correlated JSON-RPC notifications:
 
 - `notifications/payment_required`
 - `notifications/payment_accepted`
-- `notifications/payment_rejected` (CEP-21: reject without charging)
+- `notifications/payment_rejected` (reject without charging)
 
 They are correlated to the original request via an `e` tag (request event id). Your app should treat these as **notifications**, not responses.
 
@@ -96,7 +96,8 @@ If you use dynamic pricing via `resolvePrice`, the amount you return must match 
 
 - Fixed pricing via `pricedCapabilities`
 - Dynamic pricing via `resolvePrice`
-- Reject without charging (CEP-21) via `resolvePrice → { reject: true, message? }`
+- Reject without charging via `resolvePrice → { reject: true, message? }`
+- Waive payment (prepaid/subscription) via `resolvePrice → { waive: true }`
 
 Read: [`references/server-setup.md`](references/server-setup.md)
 

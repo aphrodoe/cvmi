@@ -127,8 +127,9 @@ Use this decision table to jump to the right component / skill:
 | Build a new ContextVM-native client                | `Client` + `NostrClientTransport`    | [`../client-dev/SKILL.md`](../client-dev/SKILL.md)                                           |
 | Bridge an existing MCP server to Nostr             | Gateway pattern (`NostrMCPGateway`)  | [`../server-dev/references/gateway-pattern.md`](../server-dev/references/gateway-pattern.md) |
 | Bridge an existing MCP client to Nostr             | Proxy pattern (`NostrMCPProxy`)      | [`../client-dev/references/proxy-pattern.md`](../client-dev/references/proxy-pattern.md)     |
-| SDK-level details (interfaces, constants, logging) | `@contextvm/sdk` reference           | [`../typescript-sdk/SKILL.md`](../typescript-sdk/SKILL.md)                                   |
-| Production operations (keys, Docker, monitoring)   | Deployment checklist                 | [`../deployment/SKILL.md`](../deployment/SKILL.md)                                           |
+| SDK-level details (interfaces, constants, logging)   | `@contextvm/sdk` reference           | [`../typescript-sdk/SKILL.md`](../typescript-sdk/SKILL.md)                                   |
+| Add payments to capabilities (CEP-8)                 | Payments middleware + processors     | [`../payments/SKILL.md`](../payments/SKILL.md)                                               |
+| Production operations (keys, Docker, monitoring)     | Deployment checklist                 | [`../deployment/SKILL.md`](../deployment/SKILL.md)                                           |
 | Diagnose connection issues, errors, failures       | Troubleshooting guide                | [`../troubleshooting/SKILL.md`](../troubleshooting/SKILL.md)                                 |
 
 Useful public entry points:
