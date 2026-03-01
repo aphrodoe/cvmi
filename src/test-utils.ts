@@ -53,11 +53,12 @@ export function runCliWithInput(
   cwd?: string
 ): { stdout: string; stderr: string; exitCode: number } {
   try {
-    const output = execSync(`echo "${input}" | node ${CLI_PATH} ${args.join(' ')}`, {
+    // Use cross-platform input handling (pipe via stdin instead of echo | on Windows)
+    const output = execSync(`node ${CLI_PATH} ${args.join(' ')}`, {
       encoding: 'utf-8',
       cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
-      shell: '/bin/bash',
+      input: input + '\n',
     });
     return { stdout: stripAnsi(output), stderr: '', exitCode: 0 };
   } catch (error: any) {
