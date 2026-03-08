@@ -83,6 +83,9 @@ interface NostrTransportOptions extends BaseNostrTransportOptions {
 interface NostrServerTransportOptions extends BaseNostrTransportOptions {
   serverInfo?: ServerInfo;
   isPublicServer?: boolean;
+  publishRelayList?: boolean;
+  relayListUrls?: string[];
+  bootstrapRelayUrls?: string[];
   allowedPublicKeys?: string[];
   excludedCapabilities?: CapabilityExclusion[];
   injectClientPubkey?: boolean;

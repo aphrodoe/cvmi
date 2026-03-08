@@ -85,6 +85,21 @@ Example global config (`~/.cvmi/config.json`):
 
 Note: For `serve`, you should configure either `serve.url` (remote Streamable HTTP MCP server) or `serve.command`/`serve.args` (spawn local stdio MCP server).
 
+### Public discovery and relay-list metadata
+
+The underlying SDK can publish two complementary discoverability artifacts:
+
+- `kind:11316-11320` server announcement events for capabilities and metadata
+- `kind:10002` relay-list metadata so clients can discover where the server is reachable
+
+Recommended behavior:
+
+- keep your operational `relays` list focused on where the server actually runs
+- use `bootstrapRelayUrls` to publish discoverability metadata more broadly
+- keep `publishRelayList` enabled unless you explicitly want to opt out, including for private servers
+
+This mirrors the CEP-17 model where discoverability publication targets can be broader than the relays advertised to clients.
+
 #### About quoting commands
 
 `cvmi serve` spawns the MCP server directly (no shell). Prefer passing the command and its arguments as separate tokens:

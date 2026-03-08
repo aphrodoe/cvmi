@@ -58,6 +58,9 @@ console.log("Server running on Nostr");
 | `relayHandler`         | `RelayHandler \| string[]` | Required. Relay connection manager.                 |
 | `serverInfo`           | `ServerInfo`               | Optional. Metadata for announcements                |
 | `isPublicServer`       | `boolean`                  | Publish server announcements. Default: `false`      |
+| `publishRelayList`     | `boolean`                  | Publish `kind:10002` relay-list metadata            |
+| `relayListUrls`        | `string[]`                 | Explicit relay URLs to advertise                    |
+| `bootstrapRelayUrls`   | `string[]`                 | Extra discoverability publication relays            |
 | `allowedPublicKeys`    | `string[]`                 | Whitelist client public keys                        |
 | `excludedCapabilities` | `CapabilityExclusion[]`    | Bypass whitelist for specific methods               |
 | `injectClientPubkey`   | `boolean`                  | Inject client pubkey into `_meta`. Default: `false` |
@@ -102,6 +105,8 @@ const transport = new NostrServerTransport({
   signer,
   relayHandler: relayPool,
   isPublicServer: true,
+  publishRelayList: true,
+  bootstrapRelayUrls: ["wss://relay.damus.io", "wss://nos.lol"],
   serverInfo: {
     name: "Weather Service",
     about: "Get weather data worldwide",
@@ -110,7 +115,14 @@ const transport = new NostrServerTransport({
 });
 ```
 
-Publishes events on kinds 11316-11320 with your server's capabilities.
+Publishes events on kinds 11316-11320 with your server's capabilities. `publishRelayList` is independent from `isPublicServer` and defaults to enabled, so both public and private servers publish `kind:10002` relay-list metadata unless you explicitly opt out.
+
+### Relay-list publication strategy
+
+- Use `relayHandler` for the relays where your server actually operates
+- Use `relayListUrls` only if you need to override the advertised relay list
+- Use `bootstrapRelayUrls` when you want broader discoverability publication without advertising those relays as operational endpoints
+- Set `publishRelayList: false` only if you intentionally want to disable CEP-17 relay-list publication
 
 ## Client Public Key Injection
 
