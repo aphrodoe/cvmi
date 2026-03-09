@@ -6,6 +6,7 @@
 const CTXVM_MESSAGES_KIND = 25910; // Ephemeral messages
 const GIFT_WRAP_KIND = 1059; // Encrypted messages
 const SERVER_ANNOUNCEMENT_KIND = 11316; // Server metadata
+const RELAY_LIST_METADATA_KIND = 10002; // Relay-list metadata
 const TOOLS_LIST_KIND = 11317; // Tools announcement
 const RESOURCES_LIST_KIND = 11318; // Resources announcement
 const RESOURCETEMPLATES_LIST_KIND = 11319; // Resource templates

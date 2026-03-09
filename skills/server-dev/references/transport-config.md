@@ -57,7 +57,7 @@ interface CapabilityExclusion {
 ## Discoverability Options
 
 - `isPublicServer` - Publishes public discoverability metadata
-- `publishRelayList` - Publishes `kind:10002` relay-list metadata for both public and private servers unless explicitly disabled
+- `publishRelayList` - TypeScript SDK option that publishes `kind:10002` relay-list metadata unless explicitly disabled
 - `relayListUrls` - Explicit relay URLs to advertise in the relay list
 - `bootstrapRelayUrls` - Extra relays where discoverability events are published without advertising them as operational relays
 

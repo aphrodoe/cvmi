@@ -169,6 +169,7 @@ Configure via environment:
 | -------------------------- | ----- | ---------------------- |
 | `CTXVM_MESSAGES_KIND`      | 25910 | Ephemeral messages     |
 | `SERVER_ANNOUNCEMENT_KIND` | 11316 | Server metadata        |
+| `RELAY_LIST_METADATA_KIND` | 10002 | Relay-list metadata    |
 | `TOOLS_LIST_KIND`          | 11317 | Tools announcement     |
 | `RESOURCES_LIST_KIND`      | 11318 | Resources announcement |
 | `GIFT_WRAP_KIND`           | 1059  | Encrypted messages     |
