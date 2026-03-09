@@ -125,4 +125,35 @@ describe('Config Precedence', () => {
     // custom didn't specify relays, so project relays should remain (project > global).
     expect(config.serve?.relays).toEqual(['wss://project.relay']);
   });
+
+  it('merges server aliases with project overriding global', async () => {
+    const { loadConfig, getConfigPaths } = await importLoader();
+    const paths = getConfigPaths();
+
+    await mkdir(paths.globalDir, { recursive: true });
+    await writeFile(
+      paths.globalConfig,
+      JSON.stringify({
+        servers: {
+          weather: { pubkey: 'npub1global', relays: ['wss://global.relay'] },
+          globalonly: { pubkey: 'npub1globalonly' },
+        },
+      })
+    );
+    await writeFile(
+      projectConfigPath,
+      JSON.stringify({
+        servers: {
+          weather: { pubkey: 'npub1project', relays: ['wss://project.relay'] },
+          projectonly: { pubkey: 'npub1projectonly' },
+        },
+      })
+    );
+
+    const config = await loadConfig();
+    expect(config.servers?.weather?.pubkey).toBe('npub1project');
+    expect(config.servers?.weather?.relays).toEqual(['wss://project.relay']);
+    expect(config.servers?.globalonly?.pubkey).toBe('npub1globalonly');
+    expect(config.servers?.projectonly?.pubkey).toBe('npub1projectonly');
+  });
 });

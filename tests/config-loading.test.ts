@@ -48,10 +48,12 @@ describe('Environment Variable Loading', () => {
     delete process.env.CVMI_PROXY_RELAYS;
     delete process.env.CVMI_PROXY_SERVER_PUBKEY;
     delete process.env.CVMI_PROXY_ENCRYPTION;
+    delete process.env.CVMI_PROXY_STATELESS;
     delete process.env.CVMI_USE_PRIVATE_KEY;
     delete process.env.CVMI_USE_RELAYS;
     delete process.env.CVMI_USE_SERVER_PUBKEY;
     delete process.env.CVMI_USE_ENCRYPTION;
+    delete process.env.CVMI_USE_STATELESS;
   });
 
   afterEach(() => {
@@ -114,6 +116,12 @@ describe('Environment Variable Loading', () => {
     process.env.CVMI_USE_ENCRYPTION = 'disabled';
     const config = loadConfigFromEnv();
     expect(config.use?.encryption).toBeDefined();
+  });
+
+  it('loads use stateless mode from environment', () => {
+    process.env.CVMI_USE_STATELESS = 'true';
+    const config = loadConfigFromEnv();
+    expect(config.use?.isStateless).toBe(true);
   });
 
   it('returns empty config when no environment variables set', () => {
@@ -192,6 +200,11 @@ describe('getUseConfig with defaults', () => {
   it('uses default encryption mode', () => {
     const config = getUseConfig({ privateKey: 'key' });
     expect(config.encryption).toBe(DEFAULT_ENCRYPTION);
+  });
+
+  it('uses false stateless mode by default', () => {
+    const config = getUseConfig({ privateKey: 'key' });
+    expect(config.isStateless).toBe(false);
   });
 });
 

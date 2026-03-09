@@ -51,6 +51,20 @@ describe('skills CLI', () => {
     });
   });
 
+  describe('config command', () => {
+    it('should show config help for invalid config command without stack trace', () => {
+      const output = runCliOutput(['config', 'relatr', 'abc']);
+      expect(output).toContain('Error: Unknown config command: relatr.');
+      expect(output).not.toContain('at runConfigCommand');
+    });
+
+    it('should accept shorthand config add syntax', () => {
+      const output = runCliOutput(['config', 'add']);
+      expect(output).toContain('Usage: cvmi config <command> [...args] [options]');
+      expect(output).not.toContain('Unknown config section: add');
+    });
+  });
+
   describe('logo display', () => {
     it('should not display logo for list command', () => {
       const output = runCliOutput(['list']);

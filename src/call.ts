@@ -12,6 +12,7 @@ export interface CallOptions {
   privateKey?: string;
   relays?: string[];
   encryption?: EncryptionMode;
+  isStateless?: boolean;
   debug?: boolean;
   verbose?: boolean;
   raw?: boolean;
@@ -29,6 +30,7 @@ export interface ParseCallResult {
   privateKey: string | undefined;
   relays: string[] | undefined;
   encryption: EncryptionMode | undefined;
+  isStateless: boolean | undefined;
   config: string | undefined;
   unknownFlags: string[];
 }
@@ -38,6 +40,7 @@ interface ResolvedServerTarget {
   pubkey: string;
   relays: string[];
   encryption: EncryptionMode;
+  isStateless: boolean;
   aliasName?: string;
   description?: string;
 }
@@ -72,6 +75,7 @@ export function parseCallArgs(args: string[]): ParseCallResult {
     privateKey: undefined,
     relays: undefined,
     encryption: undefined,
+    isStateless: undefined,
     config: undefined,
     unknownFlags: [],
   };
@@ -112,6 +116,10 @@ export function parseCallArgs(args: string[]): ParseCallResult {
       else result.unknownFlags.push(`--encryption-mode${value ? ` (${value})` : ''}`);
     } else if (arg === '--config') {
       result.config = consumeValue('--config');
+    } else if (arg === '--stateless') {
+      result.isStateless = true;
+    } else if (arg === '--stateful') {
+      result.isStateless = false;
     } else if (arg.startsWith('--')) {
       result.unknownFlags.push(arg);
     } else if (!result.server) {
@@ -144,6 +152,7 @@ function resolveServerTarget(
 ): ResolvedServerTarget {
   const alias = getAlias(config, serverInput);
   const useConfig = getUseConfig(config.use || {});
+  const configuredStateless = config.use?.isStateless;
 
   return {
     input: serverInput,
@@ -151,6 +160,7 @@ function resolveServerTarget(
     relays: options.relays ?? alias?.relays ?? useConfig.relays ?? DEFAULT_RELAYS,
     encryption:
       options.encryption ?? alias?.encryption ?? useConfig.encryption ?? EncryptionMode.OPTIONAL,
+    isStateless: options.isStateless ?? alias?.isStateless ?? configuredStateless ?? true,
     aliasName: alias ? serverInput : undefined,
     description: alias?.description,
   };
@@ -178,21 +188,143 @@ function renderToolList(tools: Tool[]): void {
 }
 
 function renderToolSchema(tool: Tool): void {
-  const properties = tool.inputSchema.properties || {};
-  const required = new Set(tool.inputSchema.required || []);
+  renderSchemaProperties(tool.inputSchema as Record<string, unknown>, 'input parameters');
+}
+
+function formatSchemaType(schema: Record<string, unknown> | undefined): string {
+  if (!schema) return 'unknown';
+
+  if (typeof schema.type === 'string') {
+    if (schema.type === 'array') {
+      const itemType = formatSchemaType(
+        schema.items && typeof schema.items === 'object'
+          ? (schema.items as Record<string, unknown>)
+          : undefined
+      );
+      return `${itemType}[]`;
+    }
+
+    return schema.type;
+  }
+
+  if (Array.isArray(schema.type) && schema.type.every((value) => typeof value === 'string')) {
+    return schema.type.join(' | ');
+  }
+
+  if (Array.isArray(schema.anyOf)) {
+    const variants = schema.anyOf
+      .filter(
+        (entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null
+      )
+      .map((entry) => formatSchemaType(entry));
+    if (variants.length > 0) {
+      return variants.join(' | ');
+    }
+  }
+
+  if (Array.isArray(schema.oneOf)) {
+    const variants = schema.oneOf
+      .filter(
+        (entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null
+      )
+      .map((entry) => formatSchemaType(entry));
+    if (variants.length > 0) {
+      return variants.join(' | ');
+    }
+  }
+
+  if (schema.properties && typeof schema.properties === 'object') {
+    return 'object';
+  }
+
+  return 'unknown';
+}
+
+function renderNestedSchemaProperties(schema: Record<string, unknown>, indent: number): void {
+  const properties =
+    schema.properties && typeof schema.properties === 'object'
+      ? (schema.properties as Record<string, unknown>)
+      : {};
+  const required = new Set(Array.isArray(schema.required) ? schema.required : []);
+
+  for (const [name, value] of Object.entries(properties)) {
+    const property =
+      typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : undefined;
+    const type = formatSchemaType(property);
+    const description =
+      typeof property?.description === 'string' ? property.description : undefined;
+    const enumValues = Array.isArray(property?.enum) ? ` enum(${property.enum.join(', ')})` : '';
+    const prefix = ' '.repeat(indent);
+
+    console.log(
+      `${prefix}- ${name}${required.has(name) ? '' : '?'}: ${type}${enumValues}${description ? ` - ${description}` : ''}`
+    );
+
+    if (type === 'object' && property?.properties && typeof property.properties === 'object') {
+      renderNestedSchemaProperties(property, indent + 2);
+    }
+  }
+}
+
+function getNestedObjectSchema(
+  property: Record<string, unknown> | undefined
+): Record<string, unknown> | undefined {
+  if (!property) return undefined;
+
+  if (
+    property.type === 'object' &&
+    property.properties &&
+    typeof property.properties === 'object'
+  ) {
+    return property;
+  }
+
+  if (
+    property.type === 'array' &&
+    property.items &&
+    typeof property.items === 'object' &&
+    (property.items as Record<string, unknown>).type === 'object' &&
+    (property.items as Record<string, unknown>).properties &&
+    typeof (property.items as Record<string, unknown>).properties === 'object'
+  ) {
+    return property.items as Record<string, unknown>;
+  }
+
+  return undefined;
+}
+
+function renderSchemaProperties(
+  schema: Record<string, unknown> | undefined,
+  emptyLabel: string
+): void {
+  const properties =
+    schema?.properties && typeof schema.properties === 'object'
+      ? (schema.properties as Record<string, unknown>)
+      : {};
+  const required = new Set(Array.isArray(schema?.required) ? schema.required : []);
   const names = Object.keys(properties);
 
   if (names.length === 0) {
-    console.log('  (no input parameters)');
+    console.log(`  (no ${emptyLabel})`);
     return;
   }
 
   for (const name of names) {
     const property = properties[name] as Record<string, unknown> | undefined;
-    const type = typeof property?.type === 'string' ? property.type : 'unknown';
+    const type = formatSchemaType(property);
     const description =
       typeof property?.description === 'string' ? property.description : undefined;
     const enumValues = Array.isArray(property?.enum) ? ` enum(${property.enum.join(', ')})` : '';
+
+    const nestedObjectSchema = getNestedObjectSchema(property);
+    if (nestedObjectSchema) {
+      console.log(
+        `  - ${name}${required.has(name) ? '' : '?'}: ${type}${description ? ` - ${description}` : ''}`
+      );
+      renderNestedSchemaProperties(nestedObjectSchema, 4);
+      continue;
+    }
+
     console.log(
       `  - ${name}${required.has(name) ? '' : '?'}: ${type}${enumValues}${description ? ` - ${description}` : ''}`
     );
@@ -289,6 +421,9 @@ function renderDefaultResult(result: unknown): void {
 
 export const __test__ = {
   renderDefaultResult,
+  resolveServerTarget,
+  printServerSummary,
+  printToolHelp,
 };
 
 async function createRemoteClient(target: ResolvedServerTarget, options: CallOptions) {
@@ -305,6 +440,7 @@ async function createRemoteClient(target: ResolvedServerTarget, options: CallOpt
     relayHandler: target.relays,
     serverPubkey: target.pubkey,
     encryptionMode: target.encryption,
+    isStateless: target.isStateless,
     logLevel: options.debug ? 'debug' : 'silent',
   });
 
@@ -321,10 +457,11 @@ async function createRemoteClient(target: ResolvedServerTarget, options: CallOpt
 }
 
 function printServerSummary(target: ResolvedServerTarget, tools: Tool[]): void {
-  console.log(`${BOLD}Server:${RESET} ${target.aliasName ?? formatDisplayPubkey(target.pubkey)}`);
-  console.log(`${BOLD}Pubkey:${RESET} ${formatDisplayPubkey(target.pubkey)}`);
+  const serverLabel = target.aliasName
+    ? `${formatDisplayPubkey(target.pubkey)} (${target.aliasName})`
+    : formatDisplayPubkey(target.pubkey);
+  console.log(`${BOLD}Server pubkey:${RESET} ${serverLabel}`);
   console.log(`${BOLD}Relays:${RESET} ${target.relays.join(', ')}`);
-  console.log(`${BOLD}Encryption:${RESET} ${String(target.encryption).toLowerCase()}`);
   if (target.description) {
     console.log(`${BOLD}Description:${RESET} ${target.description}`);
   }
@@ -355,6 +492,12 @@ function printToolHelp(target: ResolvedServerTarget, tool: Tool): void {
   }
   console.log(`${BOLD}Input:${RESET}`);
   renderToolSchema(tool);
+
+  const outputSchema = (tool as Tool & { outputSchema?: Record<string, unknown> }).outputSchema;
+  if (outputSchema) {
+    console.log(`${BOLD}Output:${RESET}`);
+    renderSchemaProperties(outputSchema, 'output fields');
+  }
 }
 
 function resolveToolName(capability: string): string {
@@ -391,11 +534,10 @@ export async function call(
   const remote = await createRemoteClient(target, options);
 
   try {
-    logVerbose(options.verbose, 'Discovering tools...');
-    const toolsResult = await remote.client.listTools();
-    const tools = toolsResult.tools;
-
     if (!capabilityArg) {
+      logVerbose(options.verbose, 'Discovering tools...');
+      const toolsResult = await remote.client.listTools();
+      const tools = toolsResult.tools;
       if (options.help) {
         printServerHelp(target, tools);
       } else {
@@ -405,19 +547,20 @@ export async function call(
     }
 
     const toolName = resolveToolName(capabilityArg);
-    const tool = tools.find((entry) => entry.name === toolName);
-    if (!tool) {
-      throw new Error(`Capability not found: ${capabilityArg}`);
-    }
-
     if (options.help) {
+      logVerbose(options.verbose, 'Discovering tools...');
+      const toolsResult = await remote.client.listTools();
+      const tool = toolsResult.tools.find((entry) => entry.name === toolName);
+      if (!tool) {
+        throw new Error(`Capability not found: ${capabilityArg}`);
+      }
       printToolHelp(target, tool);
       return;
     }
 
-    logVerbose(options.verbose, `Calling tool: ${tool.name}`);
+    logVerbose(options.verbose, `Calling tool: ${toolName}`);
     const result = await remote.client.callTool({
-      name: tool.name,
+      name: toolName,
       arguments: input,
     });
 
@@ -449,6 +592,8 @@ ${BOLD}Options:${RESET}
   --private-key <key>     Your Nostr private key (hex/nsec format, auto-generated if not provided)
   --relays <urls>         Comma-separated relay URLs
   --encryption-mode       Encryption mode: optional, required, disabled
+  --stateless             Enable stateless transport mode (default)
+  --stateful              Disable stateless transport mode
   --raw                   Print raw JSON result
   --verbose               Enable cvmi progress logging
   --debug                 Enable SDK debug logging

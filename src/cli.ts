@@ -197,6 +197,204 @@ ${BOLD}Aliases:${RESET} rm, r
   `);
 }
 
+interface ConfigServerOptions {
+  relays?: string[];
+  encryption?: EncryptionMode;
+  description?: string;
+  isStateless?: boolean;
+  global: boolean;
+  config?: string;
+  unknownFlags: string[];
+}
+
+function parseConfigServerOptions(args: string[]): ConfigServerOptions {
+  const result: ConfigServerOptions = {
+    global: false,
+    unknownFlags: [],
+  };
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i] ?? '';
+
+    const consumeValue = (flagName: string): string | undefined => {
+      const nextIndex = ++i;
+      const value = args[nextIndex];
+      if (value === undefined || value.startsWith('--')) {
+        result.unknownFlags.push(`${flagName} (missing value)`);
+        if (value?.startsWith('--')) i--;
+        return undefined;
+      }
+      return value;
+    };
+
+    if (arg === '--global') {
+      result.global = true;
+    } else if (arg === '--relays') {
+      const value = consumeValue('--relays');
+      result.relays = value ? value.split(',').map((relay) => relay.trim()) : undefined;
+    } else if (arg === '--encryption-mode') {
+      const value = consumeValue('--encryption-mode');
+      result.encryption = parseEncryptionMode(value, 'CLI flag --encryption-mode');
+    } else if (arg === '--description') {
+      result.description = consumeValue('--description');
+    } else if (arg === '--config') {
+      result.config = consumeValue('--config');
+    } else if (arg === '--stateless') {
+      result.isStateless = true;
+    } else if (arg === '--stateful') {
+      result.isStateless = false;
+    } else {
+      result.unknownFlags.push(arg);
+    }
+  }
+
+  return result;
+}
+
+function showConfigHelp(): void {
+  console.log(`
+${BOLD}Usage:${RESET} cvmi config <command> [...args] [options]
+       ${RESET} cvmi config server <command> [...args] [options]
+
+${BOLD}Commands:${RESET}
+  add <alias> <pubkey>             Save a server alias
+  remove <alias>                   Remove a server alias
+  list                             List configured server aliases
+
+${BOLD}Legacy / explicit form:${RESET}
+  server add <alias> <pubkey>      Save a server alias
+  server remove <alias>            Remove a server alias
+  server list                      List configured server aliases
+
+${BOLD}Options:${RESET}
+  --global                         Write to global config instead of project config
+  --config <path>                  Use a custom config file for reads
+  --relays <urls>                  Comma-separated relay URLs
+  --encryption-mode <mode>         Encryption mode: optional, required, disabled
+  --description <text>             Optional alias description
+  --stateless                      Enable stateless transport mode
+  --stateful                       Disable stateless transport mode
+  --help, -h                       Show this help message
+
+${BOLD}Notes:${RESET}
+  Alias writes default to project scope.
+  Pass --global to write to ${DIM}~/.cvmi/config.json${RESET} instead.
+  `);
+}
+
+async function runConfigCommand(args: string[]): Promise<void> {
+  if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
+    showConfigHelp();
+    return;
+  }
+
+  const serverActions = new Set(['add', 'remove', 'list']);
+  const [first, second, ...remaining] = args;
+
+  let action: string | undefined;
+  let rest: string[] = [];
+
+  if (first === 'server') {
+    action = second;
+    rest = remaining;
+  } else if (first && serverActions.has(first)) {
+    action = first;
+    rest = [second, ...remaining].filter((value): value is string => value !== undefined);
+  } else {
+    throw new Error(
+      `Unknown config command: ${first}. Expected one of: add, remove, list, or server <command>.`
+    );
+  }
+
+  const { listServerAliases, removeServerAlias, upsertServerAlias } =
+    await import('./config/loader.ts');
+  const { normalizePublicKey } = await import('./utils/crypto.ts');
+
+  if (action === 'add') {
+    const [alias, pubkey, ...optionArgs] = rest;
+    if (!alias || !pubkey) {
+      showConfigHelp();
+      process.exit(1);
+    }
+
+    const options = parseConfigServerOptions(optionArgs);
+    if (options.unknownFlags.length > 0) {
+      throw new Error(`Unknown flag(s): ${options.unknownFlags.join(', ')}`);
+    }
+
+    const configPath = await upsertServerAlias(
+      alias,
+      {
+        pubkey: normalizePublicKey(pubkey),
+        ...(options.relays ? { relays: options.relays } : {}),
+        ...(options.encryption ? { encryption: options.encryption } : {}),
+        ...(options.description ? { description: options.description } : {}),
+        ...(options.isStateless !== undefined ? { isStateless: options.isStateless } : {}),
+      },
+      options.global ? 'global' : 'project',
+      options.config
+    );
+
+    console.log(`Saved server alias '${alias}' to ${configPath}`);
+    return;
+  }
+
+  if (action === 'remove') {
+    const [alias, ...optionArgs] = rest;
+    if (!alias) {
+      showConfigHelp();
+      process.exit(1);
+    }
+
+    const options = parseConfigServerOptions(optionArgs);
+    if (options.unknownFlags.length > 0) {
+      throw new Error(`Unknown flag(s): ${options.unknownFlags.join(', ')}`);
+    }
+
+    const removed = await removeServerAlias(
+      alias,
+      options.global ? 'global' : 'project',
+      options.config
+    );
+
+    if (!removed.removed) {
+      throw new Error(
+        `Server alias not found in ${options.global ? 'global' : 'project'} scope: ${alias}`
+      );
+    }
+
+    console.log(`Removed server alias '${alias}' from ${removed.configPath}`);
+    return;
+  }
+
+  if (action === 'list') {
+    const options = parseConfigServerOptions(rest);
+    if (options.unknownFlags.length > 0) {
+      throw new Error(`Unknown flag(s): ${options.unknownFlags.join(', ')}`);
+    }
+
+    const aliases = await listServerAliases(options.global ? 'global' : 'merged', options.config);
+    if (aliases.length === 0) {
+      console.log('No server aliases configured.');
+      return;
+    }
+
+    for (const alias of aliases) {
+      console.log(`${alias.name} (${alias.scope}) -> ${alias.pubkey}`);
+      if (alias.description) console.log(`  description: ${alias.description}`);
+      if (alias.relays?.length) console.log(`  relays: ${alias.relays.join(', ')}`);
+      if (alias.encryption) console.log(`  encryption: ${String(alias.encryption).toLowerCase()}`);
+      if (alias.isStateless !== undefined) console.log(`  stateless: ${alias.isStateless}`);
+      console.log(`  config: ${alias.configPath}`);
+    }
+    return;
+  }
+
+  throw new Error(
+    `Unknown config command: ${action}. Expected one of: add, remove, list, or server <command>.`
+  );
+}
+
 // ============================================
 // Init Command
 // ============================================
@@ -885,9 +1083,14 @@ async function main(): Promise<void> {
         privateKey: parsed.privateKey,
         relays: parsed.relays,
         encryption: parsed.encryption,
+        isStateless: parsed.isStateless,
         config: parsed.config,
       });
       process.exit(0);
+      break;
+    }
+    case 'config': {
+      await runConfigCommand(restArgs);
       break;
     }
     case '--help':
@@ -908,6 +1111,7 @@ async function main(): Promise<void> {
 main().catch((err) => {
   // Ensure commands fail with a non-zero exit code (useful for scripting).
   // Note: This does not change SIGINT/SIGTERM behavior for long-running commands.
-  console.error(err);
+  const message = err instanceof Error ? err.message : String(err);
+  console.error(`Error: ${message}`);
   process.exit(1);
 });

@@ -50,6 +50,8 @@ export interface UseConfig {
   serverPubkey?: string;
   /** Encryption mode for communications */
   encryption?: EncryptionMode;
+  /** Whether to use stateless transport mode */
+  isStateless?: boolean;
 }
 
 /**
@@ -68,6 +70,8 @@ export interface ServerTargetConfig {
   relays?: string[];
   /** Encryption mode for communications */
   encryption?: EncryptionMode;
+  /** Whether to use stateless transport mode */
+  isStateless?: boolean;
   /** Optional display description */
   description?: string;
 }
@@ -78,9 +82,9 @@ export interface ServerTargetConfig {
  */
 export interface CvmiConfig {
   /** Gateway/serve configuration */
-  serve?: Partial<ServeJsonConfig>;
+  serve?: Partial<ServeConfig>;
   /** Proxy/use configuration */
-  use?: Partial<UseJsonConfig>;
+  use?: Partial<UseConfig>;
   /** Named server aliases for direct calls */
   servers?: Record<string, ServerTargetConfig>;
 }

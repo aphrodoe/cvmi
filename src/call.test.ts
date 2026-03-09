@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { EncryptionMode } from '@contextvm/sdk';
 import { __test__, parseCallArgs } from './call.ts';
+import { stripAnsi } from './test-utils.ts';
 
 describe('parseCallArgs', () => {
   it('parses server, capability, flags, and key=value input', () => {
@@ -16,6 +17,7 @@ describe('parseCallArgs', () => {
       'wss://relay.example.com,wss://relay.two',
       '--encryption-mode',
       'required',
+      '--stateful',
     ]);
 
     expect(parsed.server).toBe('weather');
@@ -26,7 +28,14 @@ describe('parseCallArgs', () => {
     expect(parsed.verbose).toBe(true);
     expect(parsed.relays).toEqual(['wss://relay.example.com', 'wss://relay.two']);
     expect(parsed.encryption).toBe(EncryptionMode.REQUIRED);
+    expect(parsed.isStateless).toBe(false);
     expect(parsed.unknownFlags).toEqual([]);
+  });
+
+  it('enables stateless mode explicitly', () => {
+    const parsed = parseCallArgs(['weather', 'tool:ping', '--stateless']);
+
+    expect(parsed.isStateless).toBe(true);
   });
 
   it('tracks unknown flags and extra positional arguments', () => {
@@ -71,6 +80,151 @@ describe('parseCallArgs', () => {
       'database:',
       '  metrics:',
       '    totalEntries: 0',
+    ]);
+  });
+
+  it('defaults call transport to stateless when config does not specify it', () => {
+    const target = __test__.resolveServerTarget(
+      {
+        servers: {
+          relatr: {
+            pubkey: '750682303c9f0ddad75941b49edc9d46e3ed306b9ee3335338a21a3e404c5fa3',
+            relays: ['wss://relay.contextvm.org'],
+          },
+        },
+        use: {},
+      },
+      'relatr',
+      {}
+    );
+
+    expect(target.isStateless).toBe(true);
+  });
+
+  it('uses configured stateless value when present in use config', () => {
+    const target = __test__.resolveServerTarget(
+      {
+        use: {
+          isStateless: false,
+        },
+      },
+      '750682303c9f0ddad75941b49edc9d46e3ed306b9ee3335338a21a3e404c5fa3',
+      {}
+    );
+
+    expect(target.isStateless).toBe(false);
+  });
+
+  it('renders server help summary with a single server pubkey line', () => {
+    const output: string[] = [];
+    const log = console.log;
+    console.log = (message?: unknown) => output.push(String(message ?? ''));
+
+    try {
+      const target = __test__.resolveServerTarget(
+        {
+          servers: {
+            relatr: {
+              pubkey: '750682303c9f0ddad75941b49edc9d46e3ed306b9ee3335338a21a3e404c5fa3',
+              relays: ['wss://relay.contextvm.org'],
+            },
+          },
+        },
+        'relatr',
+        {}
+      );
+
+      __test__.renderDefaultResult({ content: [], structuredContent: null });
+      output.length = 0;
+
+      const tools = [
+        {
+          name: 'search_profiles',
+          description: 'Search profiles',
+          inputSchema: { type: 'object' },
+        },
+      ] as any;
+
+      __test__.printServerSummary(target, tools);
+    } finally {
+      console.log = log;
+    }
+
+    expect(output.map((line) => stripAnsi(line))).toEqual([
+      'Server pubkey: npub1w5rgyvpunuxa446egx6fahyagm376vrtnm3nx5ec5gdruszvt73spqeu4t (relatr)',
+      'Relays: wss://relay.contextvm.org',
+      'Tools: 1',
+      '  - search_profiles: Search profiles',
+    ]);
+  });
+
+  it('renders output schema in tool help using human-readable schema lines', () => {
+    const output: string[] = [];
+    const log = console.log;
+    console.log = (message?: unknown) => output.push(String(message ?? ''));
+
+    try {
+      const target = __test__.resolveServerTarget(
+        {
+          servers: {
+            relatr: {
+              pubkey: '750682303c9f0ddad75941b49edc9d46e3ed306b9ee3335338a21a3e404c5fa3',
+              relays: ['wss://relay.contextvm.org'],
+            },
+          },
+        },
+        'relatr',
+        {}
+      );
+
+      __test__.printToolHelp(target, {
+        name: 'search_profiles',
+        description: 'Search profiles',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: { type: 'string' },
+          },
+          required: ['query'],
+        },
+        outputSchema: {
+          type: 'object',
+          properties: {
+            results: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  pubkey: { type: 'string' },
+                  trustScore: { type: 'number' },
+                },
+                required: ['pubkey', 'trustScore'],
+              },
+            },
+            totalFound: { type: 'integer' },
+            searchTimeMs: { type: 'integer' },
+          },
+          required: ['results', 'totalFound', 'searchTimeMs'],
+        },
+      } as any);
+    } finally {
+      console.log = log;
+    }
+
+    expect(output.map((line) => stripAnsi(line))).toEqual([
+      'Usage: cvmi call relatr search_profiles [key=value ...] [options]',
+      '',
+      'Capability: search_profiles',
+      'Kind: tool',
+      'Description: Search profiles',
+      'Input:',
+      '  - query: string',
+      'Output:',
+      '  - results: object[]',
+      '    - pubkey: string',
+      '    - trustScore: number',
+      '  - totalFound: integer',
+      '  - searchTimeMs: integer',
     ]);
   });
 });
