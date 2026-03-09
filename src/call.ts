@@ -2,10 +2,17 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type { Tool } from '@modelcontextprotocol/sdk/types.js';
 import { NostrClientTransport, PrivateKeySigner, EncryptionMode } from '@contextvm/sdk';
 import { nip19 } from 'nostr-tools';
-import { loadConfig, getUseConfig, DEFAULT_RELAYS } from './config/index.ts';
+import {
+  loadConfig,
+  loadCallPrivateKeyFromEnv,
+  getUseConfig,
+  DEFAULT_RELAYS,
+} from './config/index.ts';
 import type { CvmiConfig, ServerTargetConfig } from './config/index.ts';
 import { generatePrivateKey, normalizePrivateKey, normalizePublicKey } from './utils/crypto.ts';
 import { BOLD, DIM, RESET } from './constants/ui.ts';
+import { renderDefaultResult } from './call/render-result.ts';
+import { renderSchemaProperties, renderToolSchema } from './call/render-schema.ts';
 
 export interface CallOptions {
   config?: string;
@@ -187,238 +194,6 @@ function renderToolList(tools: Tool[]): void {
   }
 }
 
-function renderToolSchema(tool: Tool): void {
-  renderSchemaProperties(tool.inputSchema as Record<string, unknown>, 'input parameters');
-}
-
-function formatSchemaType(schema: Record<string, unknown> | undefined): string {
-  if (!schema) return 'unknown';
-
-  if (typeof schema.type === 'string') {
-    if (schema.type === 'array') {
-      const itemType = formatSchemaType(
-        schema.items && typeof schema.items === 'object'
-          ? (schema.items as Record<string, unknown>)
-          : undefined
-      );
-      return `${itemType}[]`;
-    }
-
-    return schema.type;
-  }
-
-  if (Array.isArray(schema.type) && schema.type.every((value) => typeof value === 'string')) {
-    return schema.type.join(' | ');
-  }
-
-  if (Array.isArray(schema.anyOf)) {
-    const variants = schema.anyOf
-      .filter(
-        (entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null
-      )
-      .map((entry) => formatSchemaType(entry));
-    if (variants.length > 0) {
-      return variants.join(' | ');
-    }
-  }
-
-  if (Array.isArray(schema.oneOf)) {
-    const variants = schema.oneOf
-      .filter(
-        (entry): entry is Record<string, unknown> => typeof entry === 'object' && entry !== null
-      )
-      .map((entry) => formatSchemaType(entry));
-    if (variants.length > 0) {
-      return variants.join(' | ');
-    }
-  }
-
-  if (schema.properties && typeof schema.properties === 'object') {
-    return 'object';
-  }
-
-  return 'unknown';
-}
-
-function renderNestedSchemaProperties(schema: Record<string, unknown>, indent: number): void {
-  const properties =
-    schema.properties && typeof schema.properties === 'object'
-      ? (schema.properties as Record<string, unknown>)
-      : {};
-  const required = new Set(Array.isArray(schema.required) ? schema.required : []);
-
-  for (const [name, value] of Object.entries(properties)) {
-    const property =
-      typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : undefined;
-    const type = formatSchemaType(property);
-    const description =
-      typeof property?.description === 'string' ? property.description : undefined;
-    const enumValues = Array.isArray(property?.enum) ? ` enum(${property.enum.join(', ')})` : '';
-    const prefix = ' '.repeat(indent);
-
-    console.log(
-      `${prefix}- ${name}${required.has(name) ? '' : '?'}: ${type}${enumValues}${description ? ` - ${description}` : ''}`
-    );
-
-    if (type === 'object' && property?.properties && typeof property.properties === 'object') {
-      renderNestedSchemaProperties(property, indent + 2);
-    }
-  }
-}
-
-function getNestedObjectSchema(
-  property: Record<string, unknown> | undefined
-): Record<string, unknown> | undefined {
-  if (!property) return undefined;
-
-  if (
-    property.type === 'object' &&
-    property.properties &&
-    typeof property.properties === 'object'
-  ) {
-    return property;
-  }
-
-  if (
-    property.type === 'array' &&
-    property.items &&
-    typeof property.items === 'object' &&
-    (property.items as Record<string, unknown>).type === 'object' &&
-    (property.items as Record<string, unknown>).properties &&
-    typeof (property.items as Record<string, unknown>).properties === 'object'
-  ) {
-    return property.items as Record<string, unknown>;
-  }
-
-  return undefined;
-}
-
-function renderSchemaProperties(
-  schema: Record<string, unknown> | undefined,
-  emptyLabel: string
-): void {
-  const properties =
-    schema?.properties && typeof schema.properties === 'object'
-      ? (schema.properties as Record<string, unknown>)
-      : {};
-  const required = new Set(Array.isArray(schema?.required) ? schema.required : []);
-  const names = Object.keys(properties);
-
-  if (names.length === 0) {
-    console.log(`  (no ${emptyLabel})`);
-    return;
-  }
-
-  for (const name of names) {
-    const property = properties[name] as Record<string, unknown> | undefined;
-    const type = formatSchemaType(property);
-    const description =
-      typeof property?.description === 'string' ? property.description : undefined;
-    const enumValues = Array.isArray(property?.enum) ? ` enum(${property.enum.join(', ')})` : '';
-
-    const nestedObjectSchema = getNestedObjectSchema(property);
-    if (nestedObjectSchema) {
-      console.log(
-        `  - ${name}${required.has(name) ? '' : '?'}: ${type}${description ? ` - ${description}` : ''}`
-      );
-      renderNestedSchemaProperties(nestedObjectSchema, 4);
-      continue;
-    }
-
-    console.log(
-      `  - ${name}${required.has(name) ? '' : '?'}: ${type}${enumValues}${description ? ` - ${description}` : ''}`
-    );
-  }
-}
-
-function hasRenderableContent(value: unknown): value is {
-  content: Array<
-    | { type: 'text'; text: string }
-    | { type: 'image'; mimeType: string; data: string }
-    | { type: 'audio'; mimeType: string; data: string }
-    | Record<string, unknown>
-  >;
-  structuredContent?: unknown;
-} {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    Array.isArray((value as { content?: unknown }).content)
-  );
-}
-
-function renderStructuredValue(value: unknown, indent = 0): void {
-  const prefix = ' '.repeat(indent);
-
-  if (value === null || value === undefined) {
-    console.log(`${prefix}${String(value)}`);
-    return;
-  }
-
-  if (Array.isArray(value)) {
-    if (value.length === 0) {
-      console.log(`${prefix}[]`);
-      return;
-    }
-
-    for (const item of value) {
-      if (item !== null && typeof item === 'object') {
-        console.log(`${prefix}-`);
-        renderStructuredValue(item, indent + 2);
-      } else {
-        console.log(`${prefix}- ${String(item)}`);
-      }
-    }
-    return;
-  }
-
-  if (typeof value === 'object') {
-    const entries = Object.entries(value);
-    if (entries.length === 0) {
-      console.log(`${prefix}{}`);
-      return;
-    }
-
-    for (const [key, entryValue] of entries) {
-      if (entryValue !== null && typeof entryValue === 'object') {
-        console.log(`${prefix}${key}:`);
-        renderStructuredValue(entryValue, indent + 2);
-      } else {
-        console.log(`${prefix}${key}: ${String(entryValue)}`);
-      }
-    }
-    return;
-  }
-
-  console.log(`${prefix}${String(value)}`);
-}
-
-function renderDefaultResult(result: unknown): void {
-  if (!hasRenderableContent(result)) {
-    console.log(JSON.stringify(result, null, 2));
-    return;
-  }
-
-  if (result.structuredContent !== undefined) {
-    renderStructuredValue(result.structuredContent);
-    return;
-  }
-
-  for (const item of result.content) {
-    if (item.type === 'text') {
-      console.log(item.text);
-    } else if (item.type === 'image') {
-      const data = typeof item.data === 'string' ? item.data : JSON.stringify(item.data);
-      console.log(`[image ${item.mimeType}, ${data.length} bytes base64]`);
-    } else if (item.type === 'audio') {
-      const data = typeof item.data === 'string' ? item.data : JSON.stringify(item.data);
-      console.log(`[audio ${item.mimeType}, ${data.length} bytes base64]`);
-    } else {
-      console.log(JSON.stringify(item, null, 2));
-    }
-  }
-}
-
 export const __test__ = {
   renderDefaultResult,
   resolveServerTarget,
@@ -519,8 +294,9 @@ export async function call(
     },
     options.config
   );
+  const useConfig = getUseConfig(config.use || {});
 
-  const serverInput = serverArg ?? getUseConfig(config.use || {}).serverPubkey;
+  const serverInput = serverArg ?? useConfig.serverPubkey;
   if (!serverInput) {
     showCallHelp();
     process.exit(1);
@@ -531,7 +307,10 @@ export async function call(
     options.verbose,
     `Connecting to ${target.aliasName ?? formatDisplayPubkey(target.pubkey)}...`
   );
-  const remote = await createRemoteClient(target, options);
+  const remote = await createRemoteClient(target, {
+    ...options,
+    privateKey: options.privateKey ?? loadCallPrivateKeyFromEnv(),
+  });
 
   try {
     if (!capabilityArg) {
@@ -589,7 +368,7 @@ ${BOLD}Arguments:${RESET}
 
 ${BOLD}Options:${RESET}
   --config <path>         Path to custom config JSON file
-  --private-key <key>     Your Nostr private key (hex/nsec format, auto-generated if not provided)
+  --private-key <key>     Your Nostr private key (hex/nsec format, overrides env, auto-generated if not provided)
   --relays <urls>         Comma-separated relay URLs
   --encryption-mode       Encryption mode: optional, required, disabled
   --stateless             Enable stateless transport mode (default)
@@ -598,6 +377,9 @@ ${BOLD}Options:${RESET}
   --verbose               Enable cvmi progress logging
   --debug                 Enable SDK debug logging
   --help, -h              Show this help message
+
+${BOLD}Private key resolution:${RESET}
+  --private-key flag, then CVMI_CALL_PRIVATE_KEY, otherwise an ephemeral key is generated
 
 ${BOLD}Examples:${RESET}
   ${DIM}$${RESET} cvmi call weather

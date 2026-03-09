@@ -10,6 +10,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   loadConfigFromEnv,
+  loadCallPrivateKeyFromEnv,
   getConfigPaths,
   getServeConfig,
   getUseConfig,
@@ -54,6 +55,7 @@ describe('Environment Variable Loading', () => {
     delete process.env.CVMI_USE_SERVER_PUBKEY;
     delete process.env.CVMI_USE_ENCRYPTION;
     delete process.env.CVMI_USE_STATELESS;
+    delete process.env.CVMI_CALL_PRIVATE_KEY;
   });
 
   afterEach(() => {
@@ -112,6 +114,11 @@ describe('Environment Variable Loading', () => {
     expect(config.use?.serverPubkey).toBe('proxy-pubkey');
   });
 
+  it('loads call private key from dedicated environment variable', () => {
+    process.env.CVMI_CALL_PRIVATE_KEY = 'call-key';
+    expect(loadCallPrivateKeyFromEnv()).toBe('call-key');
+  });
+
   it('loads use encryption mode from environment', () => {
     process.env.CVMI_USE_ENCRYPTION = 'disabled';
     const config = loadConfigFromEnv();
@@ -134,28 +141,25 @@ describe('Environment Variable Loading', () => {
 describe('getServeConfig with defaults', () => {
   it('uses provided values', () => {
     const config = getServeConfig({
-      privateKey: 'my-key',
       relays: ['wss://custom.relay.com'],
       public: true,
     });
-    expect(config.privateKey).toBe('my-key');
     expect(config.relays).toEqual(['wss://custom.relay.com']);
     expect(config.public).toBe(true);
   });
 
   it('uses default relays when none provided', () => {
-    const config = getServeConfig({ privateKey: 'key' });
+    const config = getServeConfig({});
     expect(config.relays).toEqual(DEFAULT_RELAYS);
   });
 
   it('uses default encryption mode', () => {
-    const config = getServeConfig({ privateKey: 'key' });
+    const config = getServeConfig({});
     expect(config.encryption).toBe(DEFAULT_ENCRYPTION);
   });
 
   it('handles command and args from config file', () => {
     const config = getServeConfig({
-      privateKey: 'key',
       command: 'npx',
       args: ['-y', '@modelcontextprotocol/server-filesystem', '/tmp'],
     });
@@ -166,7 +170,6 @@ describe('getServeConfig with defaults', () => {
   it('cliFlags override config file command and args', () => {
     const config = getServeConfig(
       {
-        privateKey: 'key',
         command: 'python',
         args: ['server.py'],
       },
@@ -183,27 +186,25 @@ describe('getServeConfig with defaults', () => {
 describe('getUseConfig with defaults', () => {
   it('uses provided values', () => {
     const config = getUseConfig({
-      privateKey: 'my-key',
       relays: ['wss://custom.relay.com'],
       serverPubkey: 'server-pubkey',
     });
-    expect(config.privateKey).toBe('my-key');
     expect(config.relays).toEqual(['wss://custom.relay.com']);
     expect(config.serverPubkey).toBe('server-pubkey');
   });
 
   it('uses default relays when none provided', () => {
-    const config = getUseConfig({ privateKey: 'key' });
+    const config = getUseConfig({});
     expect(config.relays).toEqual(DEFAULT_RELAYS);
   });
 
   it('uses default encryption mode', () => {
-    const config = getUseConfig({ privateKey: 'key' });
+    const config = getUseConfig({});
     expect(config.encryption).toBe(DEFAULT_ENCRYPTION);
   });
 
   it('uses false stateless mode by default', () => {
-    const config = getUseConfig({ privateKey: 'key' });
+    const config = getUseConfig({});
     expect(config.isStateless).toBe(false);
   });
 });

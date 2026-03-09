@@ -122,17 +122,17 @@ ${BOLD}Arguments:${RESET}
 
 ${BOLD}Options:${RESET}
   --config <path>         Path to custom config JSON file
-  --private-key <key>     Your Nostr private key (hex/nsec format, auto-generated if not provided)
+  --private-key <key>     Your Nostr private key (hex/nsec format, overrides env, auto-generated if not provided)
   --persist-private-key   Save private key to .env file for future use
   --relays <urls>         Comma-separated relay URLs (default: wss://relay.contextvm.org,wss://cvm.otherstuff.ai)
   --encryption-mode       Encryption mode: optional, required, disabled (default: optional)
   --verbose               Enable verbose logging
   --help, -h              Show this help message
 
-${BOLD}Configuration Sources (priority: CLI > custom config (--config) > project .cvmi.json > global ~/.cvmi/config.json > env vars):${RESET}
+  ${BOLD}Configuration Sources (priority: CLI > custom config (--config) > project .cvmi.json > global ~/.cvmi/config.json > env vars):${RESET}
   Environment variables:
-    CVMI_USE_PRIVATE_KEY, CVMI_PROXY_PRIVATE_KEY
-    CVMI_USE_RELAYS, CVMI_PROXY_RELAYS
+     CVMI_USE_PRIVATE_KEY, CVMI_PROXY_PRIVATE_KEY
+     CVMI_USE_RELAYS, CVMI_PROXY_RELAYS
     CVMI_USE_SERVER_PUBKEY, CVMI_PROXY_SERVER_PUBKEY
     CVMI_USE_ENCRYPTION, CVMI_PROXY_ENCRYPTION
 
@@ -143,7 +143,7 @@ ${BOLD}SDK Logging (set via environment, not config files):${RESET}
     LOG_ENABLED (true|false)
 
   Config file format (.cvmi.json or custom --config):
-  Note: Private keys are stored in .env file, not JSON config.
+  Note: Private keys are loaded from environment variables or CLI flags, never from JSON config.
   {
     "use": {
       "serverPubkey": "npub1...",

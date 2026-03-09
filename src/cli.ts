@@ -152,6 +152,7 @@ ${BOLD}Call Usage:${RESET}
 ${BOLD}Call Options:${RESET}
   --config <path>        Path to custom config JSON file (overrides global config)
   --private-key <key>    Nostr private key (hex format, auto-generated if not provided)
+  ${DIM}env:${RESET} CVMI_CALL_PRIVATE_KEY
   --relays <urls>        Comma-separated relay URLs (default: wss://relay.contextvm.org,wss://cvm.otherstuff.ai)
   --encryption-mode      Encryption mode: optional, required, disabled
   --raw                  Print raw JSON result

@@ -104,7 +104,7 @@ export function loadConfigFromEnv(): EnvConfig {
   // Use/proxy environment variables
   if (process.env.CVMI_PROXY_PRIVATE_KEY || process.env.CVMI_USE_PRIVATE_KEY) {
     config.use = {
-      privateKey: process.env.CVMI_PROXY_PRIVATE_KEY || process.env.CVMI_USE_PRIVATE_KEY,
+      privateKey: process.env.CVMI_USE_PRIVATE_KEY || process.env.CVMI_PROXY_PRIVATE_KEY,
     };
   }
 
@@ -135,6 +135,10 @@ export function loadConfigFromEnv(): EnvConfig {
   return config;
 }
 
+export function loadCallPrivateKeyFromEnv(): string | undefined {
+  return process.env.CVMI_CALL_PRIVATE_KEY;
+}
+
 /**
  * Load configuration from a JSON file.
  */
@@ -142,7 +146,20 @@ async function loadConfigFromFile(filePath: string): Promise<Partial<CvmiConfig>
   try {
     await access(filePath);
     const content = await readFile(filePath, 'utf-8');
-    return JSON.parse(content) as Partial<CvmiConfig>;
+    const parsed = JSON.parse(content) as Partial<CvmiConfig> & {
+      serve?: Partial<ServeConfig> & { privateKey?: string };
+      use?: Partial<UseConfig> & { privateKey?: string };
+    };
+
+    if (parsed.serve && 'privateKey' in parsed.serve) {
+      delete parsed.serve.privateKey;
+    }
+
+    if (parsed.use && 'privateKey' in parsed.use) {
+      delete parsed.use.privateKey;
+    }
+
+    return parsed;
   } catch {
     return {};
   }

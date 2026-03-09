@@ -5,6 +5,7 @@
 export {
   loadConfig,
   loadConfigFromEnv,
+  loadCallPrivateKeyFromEnv,
   getConfigPaths,
   getServeConfig,
   getUseConfig,
