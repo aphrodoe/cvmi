@@ -78,16 +78,16 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vercel-labs/skills.git"
+    "url": "git+https://github.com/ContextVM/cvmi"
   },
-  "homepage": "https://github.com/vercel-labs/skills#readme",
+  "homepage": "https://github.com/ContextVM/cvmi#readme",
   "bugs": {
-    "url": "https://github.com/vercel-labs/skills/issues"
+    "url": "https://github.com/ContextVM/cvmi/issues"
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@contextvm/sdk": "^0.7.0",
+    "@contextvm/sdk": "^0.7.1",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "nostr-tools": "^2.23.3",
     "xdg-basedir": "^5.1.0",
