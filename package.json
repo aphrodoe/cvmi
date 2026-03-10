@@ -87,7 +87,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@contextvm/sdk": "^0.7.1",
+    "@contextvm/sdk": "^0.7.2",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "nostr-tools": "^2.23.3",
     "xdg-basedir": "^5.1.0",
@@ -100,7 +100,7 @@
     "@types/node": "^22.19.15",
     "gray-matter": "^4.0.3",
     "husky": "^9.1.7",
-    "lint-staged": "^16.3.2",
+    "lint-staged": "^16.3.3",
     "obuild": "^0.4.32",
     "picocolors": "^1.1.1",
     "prettier": "^3.8.1",
