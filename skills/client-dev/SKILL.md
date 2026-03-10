@@ -81,15 +81,15 @@ await relayPool.subscribe([{ kinds: [SERVER_ANNOUNCEMENT_KIND] }], (event) => {
 
 ## NostrClientTransport Options
 
-| Option               | Type                       | Description                                                      |
-| -------------------- | -------------------------- | ---------------------------------------------------------------- |
-| `signer`             | `NostrSigner`              | Required. Signs all Nostr events                                 |
-| `relayHandler`       | `RelayHandler \| string[]` | Optional explicit operational relays                             |
-| `serverPubkey`       | `string`                   | Required. Target server's public key                             |
-| `discoveryRelayUrls` | `string[]`                 | Optional relay URLs for CEP-17 discovery lookups                 |
-| `encryptionMode`     | `EncryptionMode`           | `OPTIONAL`, `REQUIRED`, or `DISABLED`                            |
-| `isStateless`        | `boolean`                  | Skip initialization handshake. Default: `false`                  |
-| `logLevel`           | `LogLevel`                 | Logging verbosity                                                |
+| Option               | Type                       | Description                                      |
+| -------------------- | -------------------------- | ------------------------------------------------ |
+| `signer`             | `NostrSigner`              | Required. Signs all Nostr events                 |
+| `relayHandler`       | `RelayHandler \| string[]` | Optional explicit operational relays             |
+| `serverPubkey`       | `string`                   | Required. Target server's public key             |
+| `discoveryRelayUrls` | `string[]`                 | Optional relay URLs for CEP-17 discovery lookups |
+| `encryptionMode`     | `EncryptionMode`           | `OPTIONAL`, `REQUIRED`, or `DISABLED`            |
+| `isStateless`        | `boolean`                  | Skip initialization handshake. Default: `false`  |
+| `logLevel`           | `LogLevel`                 | Logging verbosity                                |
 
 ### Relay Resolution Order
 

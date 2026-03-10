@@ -99,7 +99,7 @@ const transport = new NostrServerTransport({
   relayHandler: relayPool,
   isPublicServer: true,
   publishRelayList: true,
-  bootstrapRelayUrls: ["wss://relay.damus.io", "wss://nos.lol"],
+  bootstrapRelayUrls: ['wss://relay.damus.io', 'wss://nos.lol'],
   serverInfo: {
     name: 'Weather Service',
     about: 'Get weather data worldwide',
