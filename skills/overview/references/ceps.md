@@ -65,6 +65,40 @@ Server discovery mechanism using replaceable events.
 
 ---
 
+## CEP-17: Server Relay List Metadata
+
+**Status**: Draft
+
+### Summary
+
+Servers can publish `kind:10002` relay-list metadata so clients can discover where the server is reachable.
+
+### Key Points
+
+- Uses NIP-65-style `r` tags
+- Unmarked `r` tags are the recommended ContextVM profile
+- Bootstrap relays can be used for discoverability publication without being advertised as operational relays
+- Complements CEP-6 by separating what a server offers from where it is reachable
+
+---
+
+## CEP-19: Ephemeral Gift Wraps
+
+**Status**: Draft
+
+### Summary
+
+Optional ephemeral encrypted wrapper using gift-wrap kind `21059`.
+
+### Key Points
+
+- Extends CEP-4 encryption behavior
+- `support_encryption_ephemeral` advertises support
+- If both peers support it, implementations should prefer `21059`
+- Fallback to persistent gift wraps `1059` preserves interoperability
+
+---
+
 ## CEP-16: Client Public Key Injection
 
 **Status**: Final

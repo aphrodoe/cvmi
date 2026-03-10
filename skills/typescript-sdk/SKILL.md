@@ -129,6 +129,15 @@ const pool = new SimpleRelayPool(relayUrls);
 
 Use `ApplesauceRelayPool` for new projects.
 
+For [`NostrClientTransport`](cvmi/skills/typescript-sdk/SKILL.md:22), `relayHandler` can be omitted when the client should resolve operational relays dynamically. The resolution order is:
+
+1. explicit operational relays from `relayHandler`
+2. relay hints embedded in `nprofile`
+3. CEP-17 relay-list discovery via `discoveryRelayUrls`
+4. SDK bootstrap discovery relays when `discoveryRelayUrls` is omitted
+
+This makes client configuration simpler when the server already publishes `kind:10002` metadata.
+
 ## Encryption Modes
 
 ```typescript
@@ -166,6 +175,7 @@ Configure via environment:
 | -------------------------- | ----- | ---------------------- |
 | `CTXVM_MESSAGES_KIND`      | 25910 | Ephemeral messages     |
 | `SERVER_ANNOUNCEMENT_KIND` | 11316 | Server metadata        |
+| `RELAY_LIST_METADATA_KIND` | 10002 | Relay-list metadata    |
 | `TOOLS_LIST_KIND`          | 11317 | Tools announcement     |
 | `RESOURCES_LIST_KIND`      | 11318 | Resources announcement |
 | `GIFT_WRAP_KIND`           | 1059  | Encrypted messages     |

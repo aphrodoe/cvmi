@@ -13,6 +13,9 @@ interface NostrServerTransportOptions {
 
   // Optional - Discovery
   isPublicServer?: boolean;
+  publishRelayList?: boolean;
+  relayListUrls?: string[];
+  bootstrapRelayUrls?: string[];
 
   // Optional - Access control
   allowedPublicKeys?: string[];
@@ -50,6 +53,13 @@ interface CapabilityExclusion {
 - `OPTIONAL` (default) - Use encryption if client supports it
 - `REQUIRED` - Only accept encrypted connections
 - `DISABLED` - Never use encryption
+
+## Discoverability Options
+
+- `isPublicServer` - Publishes public discoverability metadata
+- `publishRelayList` - TypeScript SDK option that publishes `kind:10002` relay-list metadata unless explicitly disabled
+- `relayListUrls` - Explicit relay URLs to advertise in the relay list
+- `bootstrapRelayUrls` - Extra relays where discoverability events are published without advertising them as operational relays
 
 ## LogLevel
 
