@@ -1,6 +1,6 @@
 {
   "name": "cvmi",
-  "version": "0.1.11",
+  "version": "0.2.0",
   "description": "ContextVM Interface",
   "type": "module",
   "bin": {
@@ -17,8 +17,8 @@
     "dev": "node src/cli.ts",
     "exec:test": "node scripts/execute-tests.ts",
     "prepublishOnly": "npm run build",
-    "format": "prettier --write 'src/**/*.ts' 'scripts/**/*.ts'",
-    "format:check": "prettier --check 'src/**/*.ts' 'scripts/**/*.ts'",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "prepare": "husky",
     "test": "vitest src",
     "type-check": "tsc --noEmit",
@@ -26,9 +26,14 @@
     "publish:snapshot": "npm version prerelease --preid=snapshot --no-git-tag-version && npm publish --tag snapshot"
   },
   "lint-staged": {
+    "*.{md,json,yml,yaml}": "prettier --write",
     "src/**/*.ts": "prettier --write",
     "scripts/**/*.ts": "prettier --write",
-    "tests/**/*.ts": "prettier --write"
+    "tests/**/*.ts": "prettier --write",
+    "docs/**/*.md": "prettier --write",
+    "skills/**/*.md": "prettier --write",
+    "skills/**/*.ts": "prettier --write",
+    ".github/**/*.{yml,yaml}": "prettier --write"
   },
   "keywords": [
     "cli",

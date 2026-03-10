@@ -11,7 +11,7 @@ import {
 } from './config/index.ts';
 import type { CvmiConfig, ServerTargetConfig } from './config/index.ts';
 import { generatePrivateKey, normalizePrivateKey, normalizePublicKey } from './utils/crypto.ts';
-import { BOLD, DIM, RESET } from './constants/ui.ts';
+import { BOLD, DIM, RESET, TEXT } from './constants/ui.ts';
 import { renderDefaultResult } from './call/render-result.ts';
 import { renderSchemaProperties, renderToolSchema } from './call/render-schema.ts';
 
@@ -408,12 +408,22 @@ ${BOLD}Options:${RESET}
 ${BOLD}Private key resolution:${RESET}
   --private-key flag, then CVMI_CALL_PRIVATE_KEY, otherwise an ephemeral key is generated
 
+${BOLD}Configuration Sources (priority: CLI > custom config (--config) > project .cvmi.json > global ~/.cvmi/config.json > env vars):${RESET}
+  Use ${TEXT}cvmi config add <alias> <pubkey>${RESET} to create reusable server aliases in ${TEXT}.cvmi.json${RESET}
+  Use ${TEXT}cvmi config add --global <alias> <pubkey>${RESET} to save aliases in ${TEXT}~/.cvmi/config.json${RESET}
+  Use ${TEXT}cvmi call <alias>${RESET} or ${TEXT}cvmi call <alias> <tool>${RESET} to resolve them from config
+
+  Config file format (.cvmi.json or custom --config):
+  Note: Private keys are loaded from environment variables or CLI flags, never from JSON config.
+
 ${BOLD}Examples:${RESET}
   ${DIM}$${RESET} cvmi call weather
   ${DIM}$${RESET} cvmi call weather --help
+  ${DIM}$${RESET} cvmi config add weather nprofile1example
+  ${DIM}$${RESET} cvmi config add weather npub1... --relays wss://relay.example.org
   ${DIM}$${RESET} cvmi call weather weather.get_current city=Lisbon
   ${DIM}$${RESET} cvmi call weather --debug
-  ${DIM}$${RESET} cvmi call npub1... tool:weather.get_current city=Lisbon --raw
-  ${DIM}$${RESET} cvmi call nprofile1... tool:weather.get_current city=Lisbon
+  ${DIM}$${RESET} cvmi call npub1... weather.get_current city=Lisbon --raw
+  ${DIM}$${RESET} cvmi call nprofile1... weather.get_current city=Lisbon
   `);
 }

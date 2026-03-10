@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EncryptionMode } from '@contextvm/sdk';
-import { __test__, parseCallArgs } from './call.ts';
+import { __test__, parseCallArgs, showCallHelp } from './call.ts';
 import { stripAnsi } from './test-utils.ts';
 
 describe('parseCallArgs', () => {
@@ -314,5 +314,24 @@ describe('parseCallArgs', () => {
       '  - totalFound: integer',
       '  - searchTimeMs: integer',
     ]);
+  });
+
+  it('documents config-backed aliases in call help', () => {
+    const output: string[] = [];
+    const log = console.log;
+    console.log = (message?: unknown) => output.push(String(message ?? ''));
+
+    try {
+      showCallHelp();
+    } finally {
+      console.log = log;
+    }
+
+    const help = output.map((line) => stripAnsi(line)).join('\n');
+    expect(help).toContain(
+      'Configuration Sources (priority: CLI > custom config (--config) > project .cvmi.json > global ~/.cvmi/config.json > env vars):'
+    );
+    expect(help).toContain('cvmi config add <alias> <pubkey>');
+    expect(help).toContain('cvmi call <alias> <tool>');
   });
 });

@@ -1,11 +1,16 @@
 # cvmi
 
+## 0.2.0
+
+### Minor Changes
+
+- feat(cli): add cvmi call command to invoke remote ContextVM capabilities
+
 ## 0.1.11
 
 ### Patch Changes
 
 - feat: align agent selection UX with upstream skills CLI
-
   - Add interactive search with fuzzy filtering to agent selection
   - Display locked "Universal (.agents/skills)" section with pre-selected universal agents
   - Improve visual separation between universal and agent-specific installations
