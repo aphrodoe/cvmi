@@ -30,7 +30,6 @@ const SERVER_PUBKEY = "server-public-key-hex";
 
 const transport = new NostrClientTransport({
   signer,
-  relayHandler: relayPool,
   serverPubkey: SERVER_PUBKEY,
   encryptionMode: EncryptionMode.OPTIONAL,
 });
@@ -59,7 +58,6 @@ Connect when you know the server's public key:
 ```typescript
 const transport = new NostrClientTransport({
   signer,
-  relayHandler: relayPool,
   serverPubkey: "known-server-pubkey",
 });
 ```
@@ -81,14 +79,26 @@ await relayPool.subscribe([{ kinds: [SERVER_ANNOUNCEMENT_KIND] }], (event) => {
 
 ## NostrClientTransport Options
 
-| Option           | Type                       | Description                                     |
-| ---------------- | -------------------------- | ----------------------------------------------- |
-| `signer`         | `NostrSigner`              | Required. Signs all Nostr events                |
-| `relayHandler`   | `RelayHandler \| string[]` | Required. Relay connection manager              |
-| `serverPubkey`   | `string`                   | Required. Target server's public key            |
-| `encryptionMode` | `EncryptionMode`           | `OPTIONAL`, `REQUIRED`, or `DISABLED`           |
-| `isStateless`    | `boolean`                  | Skip initialization handshake. Default: `false` |
-| `logLevel`       | `LogLevel`                 | Logging verbosity                               |
+| Option               | Type                       | Description                                                      |
+| -------------------- | -------------------------- | ---------------------------------------------------------------- |
+| `signer`             | `NostrSigner`              | Required. Signs all Nostr events                                 |
+| `relayHandler`       | `RelayHandler \| string[]` | Optional explicit operational relays                             |
+| `serverPubkey`       | `string`                   | Required. Target server's public key                             |
+| `discoveryRelayUrls` | `string[]`                 | Optional relay URLs for CEP-17 discovery lookups                 |
+| `encryptionMode`     | `EncryptionMode`           | `OPTIONAL`, `REQUIRED`, or `DISABLED`                            |
+| `isStateless`        | `boolean`                  | Skip initialization handshake. Default: `false`                  |
+| `logLevel`           | `LogLevel`                 | Logging verbosity                                                |
+
+### Relay Resolution Order
+
+`NostrClientTransport` resolves operational relays in this order:
+
+1. explicit operational relays from `relayHandler`
+2. relay hints embedded in `nprofile`
+3. CEP-17 relay-list discovery via `discoveryRelayUrls`
+4. SDK bootstrap discovery relays when `discoveryRelayUrls` is omitted
+
+This allows leaner client setup when the target server already publishes `kind:10002` metadata.
 
 ## Stateless Mode
 
@@ -97,7 +107,6 @@ Skip the initialization handshake for faster connections:
 ```typescript
 const transport = new NostrClientTransport({
   signer,
-  relayHandler: relayPool,
   serverPubkey: SERVER_PUBKEY,
   isStateless: true, // Skip initialize roundtrip
 });
@@ -118,7 +127,6 @@ const proxy = new NostrMCPProxy({
   // Remote server connection
   nostrTransportOptions: {
     signer,
-    relayHandler: relayPool,
     serverPubkey: SERVER_PUBKEY,
   },
 });
