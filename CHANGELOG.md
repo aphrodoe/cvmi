@@ -1,5 +1,11 @@
 # cvmi
 
+## 0.2.3
+
+### Patch Changes
+
+- feat(cli): improve UX for LLM usage
+
 ## 0.2.2
 
 ### Patch Changes

@@ -3,6 +3,20 @@ import { EncryptionMode } from '@contextvm/sdk';
 import { __test__, parseCallArgs, showCallHelp } from './call.ts';
 import { stripAnsi } from './test-utils.ts';
 
+function captureConsoleOutput(render: () => void): string[] {
+  const output: string[] = [];
+  const log = console.log;
+  console.log = (message?: unknown) => output.push(String(message ?? ''));
+
+  try {
+    render();
+  } finally {
+    console.log = log;
+  }
+
+  return output.map((line) => stripAnsi(line));
+}
+
 describe('parseCallArgs', () => {
   it('parses server, capability, flags, and key=value input', () => {
     const parsed = parseCallArgs([
@@ -29,7 +43,15 @@ describe('parseCallArgs', () => {
     expect(parsed.relays).toEqual(['wss://relay.example.com', 'wss://relay.two']);
     expect(parsed.encryption).toBe(EncryptionMode.REQUIRED);
     expect(parsed.isStateless).toBe(false);
+    expect(parsed.showServerDetails).toBe(false);
     expect(parsed.unknownFlags).toEqual([]);
+  });
+
+  it('parses server details flag explicitly', () => {
+    const parsed = parseCallArgs(['weather', '--details']);
+
+    expect(parsed.server).toBe('weather');
+    expect(parsed.showServerDetails).toBe(true);
   });
 
   it('enables stateless mode explicitly', () => {
@@ -131,11 +153,7 @@ describe('parseCallArgs', () => {
   });
 
   it('uses nprofile relay hints in server summary when no explicit relays are configured', () => {
-    const output: string[] = [];
-    const log = console.log;
-    console.log = (message?: unknown) => output.push(String(message ?? ''));
-
-    try {
+    const output = captureConsoleOutput(() => {
       const target = __test__.resolveServerTarget(
         {
           use: {},
@@ -144,18 +162,23 @@ describe('parseCallArgs', () => {
         {}
       );
 
-      __test__.printServerSummary(target, [] as any);
-    } finally {
-      console.log = log;
-    }
+      __test__.printServerHelp(target, [] as any);
+    });
 
-    expect(output.map((line) => stripAnsi(line))).toEqual([
+    expect(output).toEqual([
+      'Usage',
+      '  cvmi call <server> <tool> [key=value ...] [options]',
+      '',
       'Server',
       '  Identity: nprofile1qqs82p5zxq7f7rw66av5rdy7mjw5dcldxp4eacen2vu2yx37gpx9lgcpr9mhxue69uhhyetvv9ujucm0de6x27r5wekjummjvu4speke',
-      '  Relays: wss://relay.contextvm.org',
-      '  Tools: 0',
       '',
       '  (no tools exposed)',
+      '',
+      'Examples',
+      '  $ cvmi call nprofile1qqs82p5zxq7f7rw66av5rdy7mjw5dcldxp4eacen2vu2yx37gpx9lgcpr9mhxue69uhhyetvv9ujucm0de6x27r5wekjummjvu4speke',
+      '  $ cvmi call nprofile1qqs82p5zxq7f7rw66av5rdy7mjw5dcldxp4eacen2vu2yx37gpx9lgcpr9mhxue69uhhyetvv9ujucm0de6x27r5wekjummjvu4speke <tool> --help',
+      '  $ cvmi call nprofile1qqs82p5zxq7f7rw66av5rdy7mjw5dcldxp4eacen2vu2yx37gpx9lgcpr9mhxue69uhhyetvv9ujucm0de6x27r5wekjummjvu4speke <tool> key=value',
+      '  $ cvmi call nprofile1qqs82p5zxq7f7rw66av5rdy7mjw5dcldxp4eacen2vu2yx37gpx9lgcpr9mhxue69uhhyetvv9ujucm0de6x27r5wekjummjvu4speke --details',
     ]);
   });
 
@@ -177,12 +200,38 @@ describe('parseCallArgs', () => {
     expect(target.relays).toEqual(['wss://override.example']);
   });
 
-  it('renders server help summary with a single server pubkey line', () => {
-    const output: string[] = [];
-    const log = console.log;
-    console.log = (message?: unknown) => output.push(String(message ?? ''));
+  it('rejects unknown aliases with config list guidance', () => {
+    expect(() =>
+      __test__.assertKnownServerInput(
+        {
+          servers: {
+            relatr: {
+              pubkey: '750682303c9f0ddad75941b49edc9d46e3ed306b9ee3335338a21a3e404c5fa3',
+            },
+          },
+        },
+        'weather'
+      )
+    ).toThrowErrorMatchingInlineSnapshot(`
+      [Error: Unknown server alias or invalid server identity: weather
+      Run \`cvmi config list\` to see configured aliases.
+      Or pass a direct server identity in hex, npub, or nprofile format.]
+    `);
+  });
 
-    try {
+  it('accepts direct server identities without requiring an alias', () => {
+    expect(() =>
+      __test__.assertKnownServerInput(
+        {
+          servers: {},
+        },
+        'npub1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqp4mhxue69uhkummn9ekx7mp0d3skjtnrdakj7q'
+      )
+    ).not.toThrow();
+  });
+
+  it('renders unified server help with a single server pubkey line', () => {
+    const output = captureConsoleOutput(() => {
       const target = __test__.resolveServerTarget(
         {
           servers: {
@@ -196,9 +245,6 @@ describe('parseCallArgs', () => {
         {}
       );
 
-      __test__.renderDefaultResult({ content: [], structuredContent: null });
-      output.length = 0;
-
       const tools = [
         {
           name: 'search_profiles',
@@ -207,28 +253,74 @@ describe('parseCallArgs', () => {
         },
       ] as any;
 
-      __test__.printServerSummary(target, tools);
-    } finally {
-      console.log = log;
-    }
+      __test__.printServerHelp(target, tools);
+    });
 
-    expect(output.map((line) => stripAnsi(line))).toEqual([
+    expect(output).toEqual([
+      'Usage',
+      '  cvmi call <server> <tool> [key=value ...] [options]',
+      '',
       'Server',
-      '  Identity: npub1w5rgyvpunuxa446egx6fahyagm376vrtnm3nx5ec5gdruszvt73spqeu4t (relatr)',
+      '  Alias: relatr',
+      '',
+      '  • search_profiles — Search profiles',
+      '',
+      'Examples',
+      '  $ cvmi call relatr',
+      '  $ cvmi call relatr <tool> --help',
+      '  $ cvmi call relatr <tool> key=value',
+      '  $ cvmi call relatr --details',
+    ]);
+  });
+
+  it('renders detailed alias server help when details are requested', () => {
+    const output = captureConsoleOutput(() => {
+      const target = __test__.resolveServerTarget(
+        {
+          servers: {
+            relatr: {
+              pubkey: '750682303c9f0ddad75941b49edc9d46e3ed306b9ee3335338a21a3e404c5fa3',
+              relays: ['wss://relay.contextvm.org'],
+              description: 'Social graph search',
+            },
+          },
+        },
+        'relatr',
+        {}
+      );
+
+      __test__.printServerHelp(
+        target,
+        [{ name: 'search_profiles', inputSchema: { type: 'object' } }] as any,
+        {
+          showServerDetails: true,
+        }
+      );
+    });
+
+    expect(output).toEqual([
+      'Usage',
+      '  cvmi call <server> <tool> [key=value ...] [options]',
+      '',
+      'Server',
+      '  Alias: relatr',
+      '  Description: Social graph search',
+      '  Identity: npub1w5rgyvpunuxa446egx6fahyagm376vrtnm3nx5ec5gdruszvt73spqeu4t',
       '  Relays: wss://relay.contextvm.org',
       '  Tools: 1',
       '',
-      '  • search_profiles — Search profiles',
+      '  • search_profiles',
+      '',
+      'Examples',
+      '  $ cvmi call relatr',
+      '  $ cvmi call relatr <tool> --help',
+      '  $ cvmi call relatr <tool> key=value',
     ]);
   });
 
   it('renders nprofile server identities without forcing npub normalization', () => {
-    const output: string[] = [];
-    const log = console.log;
-    console.log = (message?: unknown) => output.push(String(message ?? ''));
-
-    try {
-      __test__.printServerSummary(
+    const output = captureConsoleOutput(() => {
+      __test__.printServerHelp(
         {
           input: 'nprofile1example',
           server: 'nprofile1example',
@@ -238,17 +330,22 @@ describe('parseCallArgs', () => {
         },
         [] as any
       );
-    } finally {
-      console.log = log;
-    }
+    });
 
-    expect(output.map((line) => stripAnsi(line))).toEqual([
+    expect(output).toEqual([
+      'Usage',
+      '  cvmi call <server> <tool> [key=value ...] [options]',
+      '',
       'Server',
       '  Identity: nprofile1example',
-      '  Relays: wss://relay.contextvm.org',
-      '  Tools: 0',
       '',
       '  (no tools exposed)',
+      '',
+      'Examples',
+      '  $ cvmi call nprofile1example',
+      '  $ cvmi call nprofile1example <tool> --help',
+      '  $ cvmi call nprofile1example <tool> key=value',
+      '  $ cvmi call nprofile1example --details',
     ]);
   });
 
@@ -328,25 +425,34 @@ describe('parseCallArgs', () => {
   });
 
   it('documents config-backed aliases in call help', () => {
-    const output: string[] = [];
-    const log = console.log;
-    console.log = (message?: unknown) => output.push(String(message ?? ''));
-
-    try {
+    const output = captureConsoleOutput(() => {
       showCallHelp();
-    } finally {
-      console.log = log;
-    }
+    });
 
-    const help = output.map((line) => stripAnsi(line)).join('\n');
+    const help = output.join('\n');
     expect(help).toContain(
       'Configuration Sources (priority: CLI > custom config (--config) > project .cvmi.json > global ~/.cvmi/config.json > env vars):'
     );
     expect(help).toContain('cvmi config add <alias> <pubkey>');
+    expect(help).toContain('cvmi config list');
+    expect(help).toContain('If an alias does not resolve, run cvmi config list before retrying');
     expect(help).toContain('cvmi call <alias> <tool>');
-    expect(help).toContain('arrays/objects must be passed as quoted JSON values');
     expect(help).toContain(
-      'cvmi call relatr calculate_trust_scores \'targetPubkeys=["pubkey1","pubkey2"]\''
+      '--details               Show resolved server identity and relay details during inspection'
+    );
+    expect(help).toContain('arrays/objects must be passed as quoted JSON values');
+    expect(help).toContain('cvmi call weather --details');
+    expect(help).toContain('cvmi call weather get_current --help');
+    expect(help).toContain('cvmi call npub1... <tool> \'targetPubkeys=["pubkey1","pubkey2"]\'');
+  });
+
+  it('builds actionable missing-tool guidance', () => {
+    expect(__test__.buildMissingToolError('relatr', 'missing_tool').message).toBe(
+      [
+        'Tool not found: missing_tool',
+        'Run `cvmi call relatr` to list available tools on this server.',
+        'Run `cvmi call relatr <tool> --help` to inspect a specific tool.',
+      ].join('\n')
     );
   });
 });

@@ -61,6 +61,7 @@ function showBanner(): void {
     ['npx cvmi add [options]', 'Install ContextVM skills'],
     ['npx cvmi serve [options] -- <cmd>', 'Expose MCP server over Nostr'],
     ['npx cvmi use <pubkey>', 'Connect to Nostr MCP server'],
+    ['npx cvmi config <command>', 'Manage saved server aliases'],
     ['npx cvmi discover', 'Discover announced servers on relays'],
     ['npx cvmi call <server>', 'Call a remote ContextVM capability'],
     ['npx cvmi check', 'Check for updates'],
@@ -73,7 +74,7 @@ function showBanner(): void {
     );
   }
   console.log();
-  console.log(`${DIM}try:${RESET} npx cvmi add`);
+  console.log(`${DIM}Try:${RESET} npx cvmi --help`);
   console.log();
 }
 
@@ -82,111 +83,41 @@ function showHelp(): void {
 ${BOLD}Usage:${RESET} cvmi <command> [options]
 
 ${BOLD}Commands:${RESET}
-  add [package]     Add a skill package
-                      (no args: installs embedded ContextVM skills)
-                      e.g. contextvm/cvmi
-                           https://github.com/contextvm/cvmi
-  remove, rm, r     Remove installed skills
-  list, ls          List installed skills
-  init [name]       Initialize a new skill (creates SKILL.md)
-  sync              Sync skills from node_modules
-  serve             Expose an MCP server over Nostr
-  use               Connect to a remote Nostr MCP server
-  discover          Discover announced ContextVM servers on relays
-  call              Call a remote ContextVM capability
-  check             Check for available skill updates
-  update            Update all skills to latest versions
-
-${BOLD}Add Options:${RESET}
-  -g, --global           Install skill globally (user-level) instead of project-level
-  -a, --agent <agents>   Specify agents to install to (use '*' for all agents)
-  -s, --skill <skills>   Specify skill names to install (use '*' for all skills)
-  -l, --list             List available skills in the repository without installing
-  -y, --yes              Skip confirmation prompts
-  --all                  Shorthand for --skill '*' --agent '*' -y
-  --full-depth           Search all subdirectories even when a root SKILL.md exists
-
-${BOLD}Remove Options:${RESET}
-  -g, --global           Remove from global scope
-  -a, --agent <agents>   Remove from specific agents (use '*' for all agents)
-  -s, --skill <skills>   Specify skills to remove (use '*' for all skills)
-  -y, --yes              Skip confirmation prompts
-  --all                  Shorthand for --skill '*' --agent '*' -y
-   
-${BOLD}List Options:${RESET}
-  -g, --global           List global skills (default: project)
-  -a, --agent <agents>   Filter by specific agents
-
-${BOLD}Sync Options:${RESET}
-  -a, --agent <agents>   Target specific agents
-  -y, --yes              Skip confirmation prompts
-  -f, --force            Force reinstall all skills
-
-${BOLD}Serve Usage:${RESET}
-  cvmi serve [options] -- <mcp-server-command> [args...]
-  cvmi serve <mcp-server-command> [args...] [options]
-
-${BOLD}Serve Options:${RESET}
-  --config <path>        Path to custom config JSON file (overrides global config)
-  --private-key <key>    Nostr private key (hex format, auto-generated if not provided)
-  --persist-private-key  Save private key to .env file for reuse
-  --relays <urls>        Comma-separated relay URLs (default: wss://relay.contextvm.org,wss://cvm.otherstuff.ai)
-  --public               Make server publicly accessible
-  --encryption-mode      Encryption mode: optional, required, disabled
-  --verbose              Enable verbose logging
-
-  ${BOLD}Tip:${RESET} Use ${BOLD}--${RESET} to separate cvmi flags from the server command.
-       Example: cvmi serve --verbose -- npx -y server --help
-
-${BOLD}Use Usage:${RESET}
-  cvmi use <server-pubkey>
-
-${BOLD}Use Options:${RESET}
-  --config <path>        Path to custom config JSON file (overrides global config)
-  --private-key <key>    Nostr private key (hex format, auto-generated if not provided)
-  --persist-private-key  Save private key to .env file for reuse
-  --relays <urls>        Comma-separated relay URLs (default: wss://relay.contextvm.org,wss://cvm.otherstuff.ai)
-  --encryption-mode      Encryption mode: optional, required, disabled
-  --verbose              Enable verbose logging
-
-${BOLD}Call Usage:${RESET}
-  cvmi call <server> [capability] [key=value ...]
-
-${BOLD}Discover Usage:${RESET}
-  cvmi discover [options]
-
-${BOLD}Call Options:${RESET}
-  --config <path>        Path to custom config JSON file (overrides global config)
-  --private-key <key>    Nostr private key (hex format, auto-generated if not provided)
-  ${DIM}env:${RESET} CVMI_CALL_PRIVATE_KEY
-  --relays <urls>        Comma-separated relay URLs (default: wss://relay.contextvm.org,wss://cvm.otherstuff.ai)
-  --encryption-mode      Encryption mode: optional, required, disabled
-  --raw                  Print raw JSON result
-  --verbose              Enable verbose logging
-
-${BOLD}Discover Options:${RESET}
-  --relays <urls>        Comma-separated relay URLs (default: wss://relay.contextvm.org,wss://cvm.otherstuff.ai)
-  --limit <n>            Limit the number of returned servers
-  --raw                  Print raw JSON result
-  --verbose              Enable verbose logging
+  add [package]          Install ContextVM skills
+  remove, rm, r          Remove installed skills
+  list, ls               List installed skills
+  init [name]            Initialize a new skill
+  sync                   Sync skills from node_modules
+  serve                  Expose an MCP server over Nostr
+  use                    Connect to a remote Nostr MCP server
+  config                 Manage saved server aliases
+  discover               Discover announced ContextVM servers on relays
+  call                   Inspect or call a remote ContextVM capability
+  check                  Check for available skill updates
+  update                 Update all skills to latest versions
 
 ${BOLD}Options:${RESET}
-  --help, -h        Show this help message
-  --version, -v     Show version number
+  --help, -h              Show this help message
+  --version, -v           Show version number
+
+${BOLD}Quick start:${RESET}
+  cvmi add [package]                  Install skills (defaults to embedded skills)
+  cvmi config list                    Show saved server aliases
+  cvmi call <server>                  Inspect a remote server
+  cvmi discover                       Find public servers on relays
 
 ${BOLD}Examples:${RESET}
   ${DIM}$${RESET} cvmi add                          ${DIM}# install embedded ContextVM skills${RESET}
-  ${DIM}$${RESET} cvmi add --skill overview ${DIM}# install specific skill${RESET}
-  ${DIM}$${RESET} cvmi add contextvm/cvmi -g        ${DIM}# install from repo, global${RESET}
-  ${DIM}$${RESET} cvmi serve -- npx -y @modelcontextprotocol/server-filesystem /tmp ${DIM}# start gateway${RESET}
-  ${DIM}$${RESET} cvmi use <server-pubkey>          ${DIM}# connect to remote MCP server${RESET}
-  ${DIM}$${RESET} cvmi discover                      ${DIM}# find public ContextVM servers${RESET}
+  ${DIM}$${RESET} cvmi add --skill overview         ${DIM}# install a specific skill${RESET}
+  ${DIM}$${RESET} cvmi remove <skill>               ${DIM}# remove an installed skill${RESET}
+  ${DIM}$${RESET} cvmi serve -- <command-or-url>    ${DIM}# start gateway, expose an already existing server (stdio or http) over nostr${RESET}
+  ${DIM}$${RESET} cvmi use <server-pubkey>          ${DIM}# connect to remote MCP server, expose it as stdio${RESET}
+  ${DIM}$${RESET} cvmi discover                     ${DIM}# find public ContextVM servers${RESET}
   ${DIM}$${RESET} cvmi call <server>                ${DIM}# list remote capabilities${RESET}
   ${DIM}$${RESET} cvmi call <server> <tool> x=1     ${DIM}# invoke a remote tool${RESET}
-  ${DIM}$${RESET} cvmi list
-  ${DIM}$${RESET} cvmi list -g
-  ${DIM}$${RESET} cvmi check
-  ${DIM}$${RESET} cvmi update
+  ${DIM}$${RESET} cvmi config                       ${DIM}# add/list/remove server aliases${RESET}
+  ${DIM}$${RESET} cvmi check                        ${DIM}# check for skill updates${RESET}
+  ${DIM}$${RESET} cvmi update                       ${DIM}# update installed skills${RESET}
   `);
 }
 
@@ -1114,6 +1045,7 @@ async function main(): Promise<void> {
         verbose: parsed.verbose,
         raw: parsed.raw,
         help: parsed.help,
+        showServerDetails: parsed.showServerDetails,
         privateKey: parsed.privateKey,
         relays: parsed.relays,
         encryption: parsed.encryption,

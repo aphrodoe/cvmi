@@ -1,4 +1,3 @@
-import * as p from '@clack/prompts';
 import { nip19, SimplePool, type Event } from 'nostr-tools';
 import { DEFAULT_RELAYS } from './config/index.ts';
 import { BOLD, CYAN, DIM, RESET } from './constants/ui.ts';
@@ -180,13 +179,10 @@ async function queryRelay(relay: string): Promise<DiscoveredServer[]> {
 
 export async function discover(options: DiscoverOptions): Promise<void> {
   const relays = options.relays?.length ? options.relays : DEFAULT_RELAYS;
-  const spinner = !options.raw ? p.spinner() : null;
 
-  if (options.verbose && !options.raw) {
-    p.log.message(`Relays: ${relays.join(', ')}`);
+  if (options.verbose) {
+    console.log(`${DIM}Relays:${RESET} ${relays.join(', ')}`);
   }
-
-  spinner?.start('Discovering announced servers...');
 
   const merged = new Map<string, DiscoveredServer>();
   for (const relay of relays) {
@@ -200,8 +196,6 @@ export async function discover(options: DiscoverOptions): Promise<void> {
   if (options.limit !== undefined) {
     results = results.slice(0, options.limit);
   }
-
-  spinner?.stop(`Found ${results.length} announced server${results.length === 1 ? '' : 's'}`);
 
   if (options.raw) {
     console.log(JSON.stringify(results, null, 2));

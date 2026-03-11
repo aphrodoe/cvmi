@@ -267,15 +267,14 @@ description: A test skill
 
     it('should include list options in help', () => {
       const result = runCli(['--help']);
-      expect(result.stdout).toContain('List Options:');
-      expect(result.stdout).toContain('-g, --global');
-      expect(result.stdout).toContain('-a, --agent');
+      expect(result.stdout).toContain('list, ls');
+      expect(result.stdout).toContain('List installed skills');
     });
 
     it('should include list examples in help', () => {
       const result = runCli(['--help']);
-      expect(result.stdout).toContain('cvmi list');
-      expect(result.stdout).toContain('cvmi list -g');
+      expect(result.stdout).toContain('cvmi add [package]');
+      expect(result.stdout).toContain('cvmi config list');
     });
   });
 

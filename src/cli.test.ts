@@ -23,7 +23,11 @@ describe('skills CLI', () => {
     it('should display help message', () => {
       const output = runCliOutput(['--help']);
       expect(output).toContain('Usage: cvmi <command> [options]');
-      expect(output).toContain('call              Call a remote ContextVM capability');
+      expect(output).toContain(
+        'call                   Inspect or call a remote ContextVM capability'
+      );
+      expect(output).toContain('config                 Manage saved server aliases');
+      expect(output).not.toContain('Add Options:');
     });
 
     it('should show same output for -h alias', () => {
@@ -52,6 +56,7 @@ describe('skills CLI', () => {
     it('should display banner', () => {
       const output = stripLogo(runCliOutput([]));
       expect(output).toBeDefined();
+      expect(output).toContain('npx cvmi config <command>');
     });
   });
 
