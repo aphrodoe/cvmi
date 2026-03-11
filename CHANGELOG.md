@@ -1,5 +1,21 @@
 # cvmi
 
+## 0.2.4
+
+### Patch Changes
+
+- refactor(call): condense help and inspection output
+
+  Reduce redundancy in cvmi call command output while maintaining
+  clarity and actionable guidance:
+  - Rename "Calling tools" to "Invoke" with consolidated copy
+  - Remove redundant quoting guidance and examples
+  - Shorten section headers: "Private key resolution" → "Private key",
+    "Configuration Sources" → "Aliases & config"
+  - Consolidate config priority and alias guidance into fewer lines
+  - Remove redundant examples from main help
+  - Update all test expectations for new output format
+
 ## 0.2.3
 
 ### Patch Changes

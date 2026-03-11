@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { EncryptionMode } from '@contextvm/sdk';
 import { __test__, parseCallArgs, showCallHelp } from './call.ts';
 import { stripAnsi } from './test-utils.ts';
@@ -10,6 +10,20 @@ function captureConsoleOutput(render: () => void): string[] {
 
   try {
     render();
+  } finally {
+    console.log = log;
+  }
+
+  return output.map((line) => stripAnsi(line));
+}
+
+async function captureConsoleOutputAsync(render: () => Promise<void>): Promise<string[]> {
+  const output: string[] = [];
+  const log = console.log;
+  console.log = (message?: unknown) => output.push(String(message ?? ''));
+
+  try {
+    await render();
   } finally {
     console.log = log;
   }
@@ -162,7 +176,7 @@ describe('parseCallArgs', () => {
         {}
       );
 
-      __test__.printServerHelp(target, [] as any);
+      __test__.printServerHelp(target, [] as any, undefined);
     });
 
     expect(output).toEqual([
@@ -174,10 +188,13 @@ describe('parseCallArgs', () => {
       '',
       '  (no tools exposed)',
       '',
+      'Invoke',
+      '  Use key=value arguments. Quote the full argument when passing JSON values, e.g. \'targets=["a","b"]\'.',
+      '  Use cvmi call nprofile1qqs82p5zxq7f7rw66av5rdy7mjw5dcldxp4eacen2vu2yx37gpx9lgcpr9mhxue69uhhyetvv9ujucm0de6x27r5wekjummjvu4speke <tool> --help for full input/output details.',
+      '',
       'Examples',
-      '  $ cvmi call nprofile1qqs82p5zxq7f7rw66av5rdy7mjw5dcldxp4eacen2vu2yx37gpx9lgcpr9mhxue69uhhyetvv9ujucm0de6x27r5wekjummjvu4speke',
       '  $ cvmi call nprofile1qqs82p5zxq7f7rw66av5rdy7mjw5dcldxp4eacen2vu2yx37gpx9lgcpr9mhxue69uhhyetvv9ujucm0de6x27r5wekjummjvu4speke <tool> --help',
-      '  $ cvmi call nprofile1qqs82p5zxq7f7rw66av5rdy7mjw5dcldxp4eacen2vu2yx37gpx9lgcpr9mhxue69uhhyetvv9ujucm0de6x27r5wekjummjvu4speke <tool> key=value',
+      '  $ cvmi call nprofile1qqs82p5zxq7f7rw66av5rdy7mjw5dcldxp4eacen2vu2yx37gpx9lgcpr9mhxue69uhhyetvv9ujucm0de6x27r5wekjummjvu4speke <tool> city=Lisbon',
       '  $ cvmi call nprofile1qqs82p5zxq7f7rw66av5rdy7mjw5dcldxp4eacen2vu2yx37gpx9lgcpr9mhxue69uhhyetvv9ujucm0de6x27r5wekjummjvu4speke --details',
     ]);
   });
@@ -253,7 +270,7 @@ describe('parseCallArgs', () => {
         },
       ] as any;
 
-      __test__.printServerHelp(target, tools);
+      __test__.printServerHelp(target, tools, undefined);
     });
 
     expect(output).toEqual([
@@ -261,14 +278,17 @@ describe('parseCallArgs', () => {
       '  cvmi call <server> <tool> [key=value ...] [options]',
       '',
       'Server',
-      '  Alias: relatr',
+      '  Name: relatr',
       '',
       '  • search_profiles — Search profiles',
       '',
+      'Invoke',
+      '  Use key=value arguments. Quote the full argument when passing JSON values, e.g. \'targets=["a","b"]\'.',
+      '  Use cvmi call relatr <tool> --help for full input/output details.',
+      '',
       'Examples',
-      '  $ cvmi call relatr',
       '  $ cvmi call relatr <tool> --help',
-      '  $ cvmi call relatr <tool> key=value',
+      '  $ cvmi call relatr <tool> city=Lisbon',
       '  $ cvmi call relatr --details',
     ]);
   });
@@ -292,6 +312,7 @@ describe('parseCallArgs', () => {
       __test__.printServerHelp(
         target,
         [{ name: 'search_profiles', inputSchema: { type: 'object' } }] as any,
+        undefined,
         {
           showServerDetails: true,
         }
@@ -303,18 +324,21 @@ describe('parseCallArgs', () => {
       '  cvmi call <server> <tool> [key=value ...] [options]',
       '',
       'Server',
-      '  Alias: relatr',
-      '  Description: Social graph search',
+      '  Name: relatr',
+      '  About: Social graph search',
       '  Identity: npub1w5rgyvpunuxa446egx6fahyagm376vrtnm3nx5ec5gdruszvt73spqeu4t',
       '  Relays: wss://relay.contextvm.org',
       '  Tools: 1',
       '',
       '  • search_profiles',
       '',
+      'Invoke',
+      '  Use key=value arguments. Quote the full argument when passing JSON values, e.g. \'targets=["a","b"]\'.',
+      '  Use cvmi call relatr <tool> --help for full input/output details.',
+      '',
       'Examples',
-      '  $ cvmi call relatr',
       '  $ cvmi call relatr <tool> --help',
-      '  $ cvmi call relatr <tool> key=value',
+      '  $ cvmi call relatr <tool> city=Lisbon',
     ]);
   });
 
@@ -328,7 +352,8 @@ describe('parseCallArgs', () => {
           encryption: EncryptionMode.OPTIONAL,
           isStateless: true,
         },
-        [] as any
+        [] as any,
+        undefined
       );
     });
 
@@ -341,10 +366,13 @@ describe('parseCallArgs', () => {
       '',
       '  (no tools exposed)',
       '',
+      'Invoke',
+      '  Use key=value arguments. Quote the full argument when passing JSON values, e.g. \'targets=["a","b"]\'.',
+      '  Use cvmi call nprofile1example <tool> --help for full input/output details.',
+      '',
       'Examples',
-      '  $ cvmi call nprofile1example',
       '  $ cvmi call nprofile1example <tool> --help',
-      '  $ cvmi call nprofile1example <tool> key=value',
+      '  $ cvmi call nprofile1example <tool> city=Lisbon',
       '  $ cvmi call nprofile1example --details',
     ]);
   });
@@ -424,32 +452,153 @@ describe('parseCallArgs', () => {
     ]);
   });
 
-  it('documents config-backed aliases in call help', () => {
+  it('renders compact input signatures in server tool lists', () => {
     const output = captureConsoleOutput(() => {
-      showCallHelp();
+      __test__.printServerHelp(
+        {
+          input: 'relatr',
+          server: '750682303c9f0ddad75941b49edc9d46e3ed306b9ee3335338a21a3e404c5fa3',
+          relays: ['wss://relay.contextvm.org'],
+          encryption: EncryptionMode.OPTIONAL,
+          isStateless: true,
+          aliasName: 'relatr',
+        },
+        [
+          {
+            name: 'search_profiles',
+            description: 'Search profiles',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                query: { type: 'string' },
+                limit: { type: 'integer' },
+                pubkeys: { type: 'array', items: { type: 'string' } },
+              },
+              required: ['query'],
+            },
+          },
+        ] as any,
+        undefined
+      );
+    });
+
+    expect(output).toContain(
+      '  • search_profiles query:string limit?:integer pubkeys?:string[] — Search profiles'
+    );
+  });
+
+  it('prefers server initialize metadata over identity in default server summary', () => {
+    const output = captureConsoleOutput(() => {
+      __test__.printServerHelp(
+        {
+          input: 'npub1example',
+          server: '750682303c9f0ddad75941b49edc9d46e3ed306b9ee3335338a21a3e404c5fa3',
+          relays: ['wss://relay.contextvm.org'],
+          encryption: EncryptionMode.OPTIONAL,
+          isStateless: true,
+        },
+        [] as any,
+        {
+          name: 'Relatr',
+          about: 'Social graph search',
+        }
+      );
+    });
+
+    expect(output).toEqual([
+      'Usage',
+      '  cvmi call <server> <tool> [key=value ...] [options]',
+      '',
+      'Server',
+      '  Name: Relatr',
+      '  About: Social graph search',
+      '',
+      '  (no tools exposed)',
+      '',
+      'Invoke',
+      '  Use key=value arguments. Quote the full argument when passing JSON values, e.g. \'targets=["a","b"]\'.',
+      '  Use cvmi call npub1example <tool> --help for full input/output details.',
+      '',
+      'Examples',
+      '  $ cvmi call npub1example <tool> --help',
+      '  $ cvmi call npub1example <tool> city=Lisbon',
+      '  $ cvmi call npub1example --details',
+    ]);
+  });
+
+  it('renders configured aliases in call help', async () => {
+    const output = await captureConsoleOutputAsync(async () => {
+      const listAliasesSpy = vi
+        .spyOn(await import('./config/index.ts'), 'listServerAliases')
+        .mockResolvedValue([
+          {
+            name: 'weather',
+            pubkey: 'npub1example',
+            scope: 'project',
+            configPath: '.cvmi.json',
+            description: 'Weather forecasts',
+          },
+          {
+            name: 'search',
+            pubkey: 'npub1example2',
+            scope: 'project',
+            configPath: '.cvmi.json',
+          },
+        ] as any);
+
+      try {
+        await showCallHelp();
+      } finally {
+        listAliasesSpy.mockRestore();
+      }
     });
 
     const help = output.join('\n');
-    expect(help).toContain(
-      'Configuration Sources (priority: CLI > custom config (--config) > project .cvmi.json > global ~/.cvmi/config.json > env vars):'
-    );
+    expect(help).toContain('Description:');
+    expect(help).toContain('Call capabilities on a remote ContextVM server.');
     expect(help).toContain('cvmi config add <alias> <pubkey>');
     expect(help).toContain('cvmi config list');
-    expect(help).toContain('If an alias does not resolve, run cvmi config list before retrying');
+    expect(help).toContain('Aliases & config:');
+    expect(help).toContain(
+      'Priority: CLI > custom config (--config) > project .cvmi.json > global ~/.cvmi/config.json > env vars'
+    );
     expect(help).toContain('cvmi call <alias> <tool>');
     expect(help).toContain(
       '--details               Show resolved server identity and relay details during inspection'
     );
-    expect(help).toContain('arrays/objects must be passed as quoted JSON values');
-    expect(help).toContain('cvmi call weather --details');
+    expect(help).toContain('Tool input:');
+    expect(help).toContain(
+      'Use key=value arguments. Quote the full argument when passing JSON values, e.g. \'filters={"kinds":[1],"limit":10}\''
+    );
     expect(help).toContain('cvmi call weather get_current --help');
-    expect(help).toContain('cvmi call npub1... <tool> \'targetPubkeys=["pubkey1","pubkey2"]\'');
+    expect(help).toContain('cvmi call npub1... <tool> \'filters={"kinds":[1],"limit":10}\'');
+    expect(help).toContain('key=value               Tool input arguments');
+    expect(help).toContain('Configured aliases');
+    expect(help).toContain('• weather — Weather forecasts');
+    expect(help).toContain('• search');
+    expect(help).not.toContain('Calling tools:');
+    expect(help).not.toContain('cvmi config add weather nprofile1example');
+    expect(help).not.toContain('Private key resolution:');
+    expect(help).not.toContain('cvmi call weather --details');
   });
 
   it('builds actionable missing-tool guidance', () => {
     expect(__test__.buildMissingToolError('relatr', 'missing_tool').message).toBe(
       [
         'Tool not found: missing_tool',
+        'Run `cvmi call relatr` to list available tools on this server.',
+        'Run `cvmi call relatr <tool> --help` to inspect a specific tool.',
+      ].join('\n')
+    );
+  });
+
+  it('suggests a close tool name in missing-tool guidance', () => {
+    expect(
+      __test__.buildMissingToolError('relatr', 'search_profile', ['search_profiles']).message
+    ).toBe(
+      [
+        'Tool not found: search_profile',
+        'Did you mean: search_profiles',
         'Run `cvmi call relatr` to list available tools on this server.',
         'Run `cvmi call relatr <tool> --help` to inspect a specific tool.',
       ].join('\n')

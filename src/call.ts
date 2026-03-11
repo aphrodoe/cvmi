@@ -7,6 +7,7 @@ import {
   loadConfig,
   loadCallPrivateKeyFromEnv,
   getUseConfig,
+  listServerAliases,
   DEFAULT_RELAYS,
 } from './config/index.ts';
 import type { CvmiConfig, ServerTargetConfig } from './config/index.ts';
@@ -61,6 +62,18 @@ interface ResolvedServerTarget {
   isStateless: boolean;
   aliasName?: string;
   description?: string;
+}
+
+interface ServerMetadata {
+  name?: string;
+  about?: string;
+  website?: string;
+  picture?: string;
+}
+
+interface CompactAliasSummary {
+  name: string;
+  context?: string;
 }
 
 function coerceValue(value: string): unknown {
@@ -239,6 +252,67 @@ function logVerbose(enabled: boolean | undefined, message: string): void {
   }
 }
 
+function formatSchemaTypeCompact(schema: Record<string, unknown> | undefined): string {
+  if (!schema) return 'unknown';
+
+  if (typeof schema.type === 'string') {
+    if (schema.type === 'array') {
+      const items =
+        schema.items && typeof schema.items === 'object'
+          ? (schema.items as Record<string, unknown>)
+          : undefined;
+      return `${formatSchemaTypeCompact(items)}[]`;
+    }
+
+    return schema.type;
+  }
+
+  if (Array.isArray(schema.type) && schema.type.every((value) => typeof value === 'string')) {
+    return schema.type.join(' | ');
+  }
+
+  if (schema.properties && typeof schema.properties === 'object') {
+    return 'object';
+  }
+
+  return 'unknown';
+}
+
+function formatToolInputSignature(tool: Tool): string | undefined {
+  const schema = tool.inputSchema as Record<string, unknown> | undefined;
+  const properties =
+    schema?.properties && typeof schema.properties === 'object'
+      ? (schema.properties as Record<string, unknown>)
+      : undefined;
+
+  if (!properties || Object.keys(properties).length === 0) {
+    return undefined;
+  }
+
+  const required = new Set(Array.isArray(schema?.required) ? schema.required : []);
+  const params = Object.entries(properties).map(([name, value]) => {
+    const property =
+      typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : undefined;
+    return `${name}${required.has(name) ? '' : '?'}:${formatSchemaTypeCompact(property)}`;
+  });
+
+  return params.join(' ');
+}
+
+function resolveServerMetadataLabel(
+  target: ResolvedServerTarget,
+  metadata?: ServerMetadata
+): string {
+  return target.aliasName ?? metadata?.name ?? formatDisplayPubkey(target.server);
+}
+
+function resolveServerMetadataContext(
+  target: ResolvedServerTarget,
+  metadata?: ServerMetadata
+): string | undefined {
+  return target.description ?? metadata?.about;
+}
+
 function renderToolList(tools: Tool[]): void {
   if (tools.length === 0) {
     console.log(`  ${DIM}(no tools exposed)${RESET}`);
@@ -246,8 +320,9 @@ function renderToolList(tools: Tool[]): void {
   }
 
   for (const tool of tools) {
+    const signature = formatToolInputSignature(tool);
     console.log(
-      `  ${CYAN}•${RESET} ${tool.name}${tool.description ? ` ${DIM}— ${tool.description}${RESET}` : ''}`
+      `  ${CYAN}•${RESET} ${tool.name}${signature ? ` ${DIM}${signature}${RESET}` : ''}${tool.description ? ` ${DIM}— ${tool.description}${RESET}` : ''}`
     );
   }
 }
@@ -269,8 +344,10 @@ export const __test__ = {
   resolveServerTarget,
   assertKnownServerInput,
   buildMissingToolError,
+  formatToolInputSignature,
   printServerHelp,
   printToolHelp,
+  printAliasSummaries,
 };
 
 async function createRemoteClient(target: ResolvedServerTarget, options: CallOptions) {
@@ -297,6 +374,12 @@ async function createRemoteClient(target: ResolvedServerTarget, options: CallOpt
 
   return {
     client,
+    metadata: {
+      name: transport.getServerInitializeName(),
+      about: transport.getServerInitializeAbout(),
+      website: transport.getServerInitializeWebsite(),
+      picture: transport.getServerInitializePicture(),
+    } satisfies ServerMetadata,
     async close() {
       await client.close();
       await transport.close();
@@ -307,25 +390,32 @@ async function createRemoteClient(target: ResolvedServerTarget, options: CallOpt
 function printServerSummary(
   target: ResolvedServerTarget,
   tools: Tool[],
+  metadata?: ServerMetadata,
   options: Pick<CallOptions, 'showServerDetails'> = {}
 ): void {
   const shouldShowDetails = options.showServerDetails === true;
+  const primaryLabel = resolveServerMetadataLabel(target, metadata);
+  const primaryContext = resolveServerMetadataContext(target, metadata);
 
   printSection('Server');
 
-  if (target.aliasName) {
-    printSummaryRow('Alias', target.aliasName);
-  } else {
-    printSummaryRow('Identity', formatDisplayPubkey(target.server));
-  }
+  printSummaryRow(target.aliasName || metadata?.name ? 'Name' : 'Identity', primaryLabel);
 
-  if (target.description) {
-    printSummaryRow('Description', target.description);
+  if (primaryContext) {
+    printSummaryRow('About', primaryContext);
   }
 
   if (shouldShowDetails) {
-    if (target.aliasName) {
+    if (target.aliasName || metadata?.name) {
       printSummaryRow('Identity', formatDisplayPubkey(target.server));
+    }
+
+    if (metadata?.website) {
+      printSummaryRow('Website', metadata.website);
+    }
+
+    if (metadata?.picture) {
+      printSummaryRow('Picture', metadata.picture);
     }
 
     printSummaryRow('Relays', getDisplayRelays(target).join(', '));
@@ -339,20 +429,42 @@ function printServerSummary(
 function printServerHelp(
   target: ResolvedServerTarget,
   tools: Tool[],
+  metadata?: ServerMetadata,
   options: Pick<CallOptions, 'showServerDetails'> = {}
 ): void {
   printSection('Usage');
   console.log(`  cvmi call <server> <tool> [key=value ...] [options]`);
   console.log();
-  printServerSummary(target, tools, options);
+  printServerSummary(target, tools, metadata, options);
+  console.log();
+  printSection('Invoke');
+  console.log(
+    `  ${DIM}Use key=value arguments. Quote the full argument when passing JSON values, e.g. 'targets=[\"a\",\"b\"]'.${RESET}`
+  );
+  console.log(
+    `  ${DIM}Use${RESET} ${TEXT}cvmi call ${target.input} <tool> --help${RESET} ${DIM}for full input/output details.${RESET}`
+  );
   console.log();
   printSection('Examples');
-  printExampleRow(`cvmi call ${target.input}`);
   printExampleRow(`cvmi call ${target.input} <tool> --help`);
-  printExampleRow(`cvmi call ${target.input} <tool> key=value`);
+  printExampleRow(`cvmi call ${target.input} <tool> city=Lisbon`);
   if (!options.showServerDetails) {
     printExampleRow(`cvmi call ${target.input} --details`);
   }
+}
+
+function printAliasSummaries(aliases: CompactAliasSummary[]): void {
+  if (aliases.length === 0) {
+    return;
+  }
+
+  printSection('Configured aliases');
+  for (const alias of aliases) {
+    console.log(
+      `  ${CYAN}•${RESET} ${alias.name}${alias.context ? ` ${DIM}— ${alias.context}${RESET}` : ''}`
+    );
+  }
+  console.log();
 }
 
 function printToolHelp(target: ResolvedServerTarget, tool: Tool): void {
@@ -386,10 +498,64 @@ function resolveToolName(capability: string): string {
   return capability.startsWith('tool:') ? capability.slice('tool:'.length) : capability;
 }
 
-function buildMissingToolError(serverInput: string, capabilityArg: string): Error {
+function levenshteinDistance(left: string, right: string): number {
+  const rows = left.length + 1;
+  const cols = right.length + 1;
+  const matrix = Array.from({ length: rows }, () => Array<number>(cols).fill(0));
+
+  for (let row = 0; row < rows; row++) {
+    matrix[row]![0] = row;
+  }
+
+  for (let col = 0; col < cols; col++) {
+    matrix[0]![col] = col;
+  }
+
+  for (let row = 1; row < rows; row++) {
+    for (let col = 1; col < cols; col++) {
+      const substitutionCost = left[row - 1] === right[col - 1] ? 0 : 1;
+      matrix[row]![col] = Math.min(
+        matrix[row - 1]![col]! + 1,
+        matrix[row]![col - 1]! + 1,
+        matrix[row - 1]![col - 1]! + substitutionCost
+      );
+    }
+  }
+
+  return matrix[rows - 1]![cols - 1]!;
+}
+
+function findClosestToolName(toolNames: string[], requestedTool: string): string | undefined {
+  const normalizedRequestedTool = requestedTool.toLowerCase();
+  let bestMatch: { name: string; distance: number } | undefined;
+
+  for (const toolName of toolNames) {
+    const distance = levenshteinDistance(toolName.toLowerCase(), normalizedRequestedTool);
+    if (!bestMatch || distance < bestMatch.distance) {
+      bestMatch = { name: toolName, distance };
+    }
+  }
+
+  if (!bestMatch) {
+    return undefined;
+  }
+
+  const threshold = Math.max(2, Math.floor(requestedTool.length / 3));
+  return bestMatch.distance <= threshold ? bestMatch.name : undefined;
+}
+
+function buildMissingToolError(
+  serverInput: string,
+  capabilityArg: string,
+  availableToolNames: string[] = []
+): Error {
+  const requestedTool = resolveToolName(capabilityArg);
+  const suggestion = findClosestToolName(availableToolNames, requestedTool);
+
   return new Error(
     [
       `Tool not found: ${capabilityArg}`,
+      ...(suggestion ? [`Did you mean: ${suggestion}`] : []),
       `Run \`cvmi call ${serverInput}\` to list available tools on this server.`,
       `Run \`cvmi call ${serverInput} <tool> --help\` to inspect a specific tool.`,
     ].join('\n')
@@ -415,7 +581,7 @@ export async function call(
 
   const serverInput = serverArg ?? useConfig.serverPubkey;
   if (!serverInput) {
-    showCallHelp();
+    await showCallHelp(options.config);
     process.exit(1);
   }
 
@@ -432,7 +598,7 @@ export async function call(
       logVerbose(options.verbose, 'Discovering tools...');
       const toolsResult = await remote.client.listTools();
       const tools = toolsResult.tools;
-      printServerHelp(target, tools, options);
+      printServerHelp(target, tools, remote.metadata, options);
       return;
     }
 
@@ -442,7 +608,11 @@ export async function call(
       const toolsResult = await remote.client.listTools();
       const tool = toolsResult.tools.find((entry) => entry.name === toolName);
       if (!tool) {
-        throw buildMissingToolError(target.input, capabilityArg);
+        throw buildMissingToolError(
+          target.input,
+          capabilityArg,
+          toolsResult.tools.map((entry) => entry.name)
+        );
       }
       printToolHelp(target, tool);
       return;
@@ -465,17 +635,27 @@ export async function call(
   }
 }
 
-export function showCallHelp(): void {
+async function getCompactAliasSummaries(configPath?: string): Promise<CompactAliasSummary[]> {
+  const aliases = await listServerAliases('merged', configPath);
+  return aliases.slice(0, 5).map((alias) => ({
+    name: alias.name,
+    context: alias.description,
+  }));
+}
+
+export async function showCallHelp(configPath?: string): Promise<void> {
+  const aliases = await getCompactAliasSummaries(configPath);
+
   console.log(`
 ${BOLD}Usage:${RESET} cvmi call <server> [capability] [key=value ...] [options]
 
 ${BOLD}Description:${RESET}
-  Connect directly to a remote ContextVM server and inspect or invoke its capabilities.
+  Call capabilities on a remote ContextVM server.
 
 ${BOLD}Arguments:${RESET}
   <server>                Server identity (hex, npub, nprofile) or configured alias
   <capability>            Tool name, or tool:<name> for explicit tool selection
-  key=value               Input arguments for tool calls; arrays/objects must be passed as quoted JSON values
+  key=value               Tool input arguments
 
 ${BOLD}Options:${RESET}
   --config <path>         Path to custom config JSON file
@@ -490,27 +670,24 @@ ${BOLD}Options:${RESET}
   --debug                 Enable SDK debug logging
   --help, -h              Show this help message
 
-${BOLD}Private key resolution:${RESET}
-  --private-key flag, then CVMI_CALL_PRIVATE_KEY, otherwise an ephemeral key is generated
+${BOLD}Private key:${RESET}
+  --private-key, then CVMI_CALL_PRIVATE_KEY, otherwise an ephemeral key is generated
 
-${BOLD}Configuration Sources (priority: CLI > custom config (--config) > project .cvmi.json > global ~/.cvmi/config.json > env vars):${RESET}
-  Use ${TEXT}cvmi config add <alias> <pubkey>${RESET} to create reusable server aliases in ${TEXT}.cvmi.json${RESET}
-  Use ${TEXT}cvmi config add --global <alias> <pubkey>${RESET} to save aliases in ${TEXT}~/.cvmi/config.json${RESET}
-  Use ${TEXT}cvmi config list${RESET} to see available aliases
-  If an alias does not resolve, run ${TEXT}cvmi config list${RESET} before retrying
+${BOLD}Tool input:${RESET}
+  Use key=value arguments. Quote the full argument when passing JSON values, e.g. 'filters={"kinds":[1],"limit":10}'
+
+${BOLD}Aliases & config:${RESET}
+  Priority: CLI > custom config (--config) > project .cvmi.json > global ~/.cvmi/config.json > env vars
+  Use ${TEXT}cvmi config add <alias> <pubkey>${RESET} to save an alias, and ${TEXT}cvmi config list${RESET} to inspect available aliases
   Use ${TEXT}cvmi call <alias>${RESET} to inspect a server and ${TEXT}cvmi call <alias> <tool>${RESET} to invoke a tool
 
 ${BOLD}Examples:${RESET}
-  ${DIM}$${RESET} cvmi config add weather nprofile1example
-  ${DIM}$${RESET} cvmi config add weather npub1... --relays wss://relay.example.org
-  ${DIM}$${RESET} cvmi config list
   ${DIM}$${RESET} cvmi call weather
-  ${DIM}$${RESET} cvmi call weather --details
   ${DIM}$${RESET} cvmi call weather get_current --help
   ${DIM}$${RESET} cvmi call weather get_current city=Lisbon
-  ${DIM}$${RESET} cvmi call npub1... <tool> 'targetPubkeys=["pubkey1","pubkey2"]'
   ${DIM}$${RESET} cvmi call npub1... <tool> 'filters={"kinds":[1],"limit":10}'
-  ${DIM}$${RESET} cvmi call weather --debug
-  ${DIM}$${RESET} cvmi call npub1... get_current city=Lisbon --raw
+  ${DIM}$${RESET} cvmi call weather <tool> --raw
   `);
+
+  printAliasSummaries(aliases);
 }

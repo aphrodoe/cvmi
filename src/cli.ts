@@ -1036,7 +1036,7 @@ async function main(): Promise<void> {
       }
 
       if (!parsed.server && parsed.help) {
-        showCallHelp();
+        await showCallHelp(parsed.config);
         break;
       }
 
