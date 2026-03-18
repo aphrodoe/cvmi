@@ -14,6 +14,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname, basename } from 'path';
 import { homedir } from 'os';
 import { fileURLToPath } from 'url';
+import { ensureWebSocket, type EncryptionMode } from '@contextvm/sdk';
 import { runAdd, parseAddOptions, initTelemetry } from './add.ts';
 import { runList } from './list.ts';
 import { removeCommand, parseRemoveOptions } from './remove.ts';
@@ -24,10 +25,13 @@ import { call, parseCallArgs, showCallHelp } from './call.ts';
 import { discover, parseDiscoverArgs, showDiscoverHelp } from './discover.ts';
 import { runSync, parseSyncOptions } from './sync.ts';
 import { parseEncryptionMode } from './config/loader.ts';
-import type { EncryptionMode } from '@contextvm/sdk';
 import { BOLD, DIM, GRAYS, LOGO_LINES, RESET, TEXT } from './constants/ui.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function ensureRelayRuntime(): void {
+  ensureWebSocket();
+}
 
 // CVMI canonical remote for embedded skills
 const CVMI_CANONICAL_REPO = 'contextvm/cvmi';
@@ -950,6 +954,7 @@ async function main(): Promise<void> {
       runUpdate();
       break;
     case 'serve': {
+      ensureRelayRuntime();
       // Check for --help or -h flag (only before `--` separator)
       const serveSeparatorIndex = restArgs.indexOf('--');
       const serveArgsBeforeSeparator =
@@ -980,6 +985,7 @@ async function main(): Promise<void> {
       break;
     }
     case 'use': {
+      ensureRelayRuntime();
       // Check for --help or -h flag
       if (restArgs.includes('--help') || restArgs.includes('-h')) {
         showUseHelp();
@@ -1005,6 +1011,7 @@ async function main(): Promise<void> {
       break;
     }
     case 'discover': {
+      ensureRelayRuntime();
       const parsed = parseDiscoverArgs(restArgs);
 
       if (parsed.unknownFlags.length > 0) {
@@ -1027,6 +1034,7 @@ async function main(): Promise<void> {
       break;
     }
     case 'call': {
+      ensureRelayRuntime();
       const parsed = parseCallArgs(restArgs);
 
       if (parsed.unknownFlags.length > 0) {

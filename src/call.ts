@@ -350,6 +350,18 @@ export const __test__ = {
   printAliasSummaries,
 };
 
+type RemoteClientFactory = typeof createRemoteClient;
+
+let createRemoteClientFactory: RemoteClientFactory = createRemoteClient;
+
+export function setCreateRemoteClientFactoryForTests(factory: RemoteClientFactory): void {
+  createRemoteClientFactory = factory;
+}
+
+export function resetCreateRemoteClientFactoryForTests(): void {
+  createRemoteClientFactory = createRemoteClient;
+}
+
 async function createRemoteClient(target: ResolvedServerTarget, options: CallOptions) {
   let privateKey = options.privateKey;
   if (!privateKey) {
@@ -606,7 +618,7 @@ export async function call(
   assertKnownServerInput(config, serverInput);
   const target = resolveServerTarget(config, serverInput, options);
   logVerbose(options.verbose, `Connecting to ${target.aliasName ?? target.server}...`);
-  const remote = await createRemoteClient(target, {
+  const remote = await createRemoteClientFactory(target, {
     ...options,
     privateKey: options.privateKey ?? loadCallPrivateKeyFromEnv(),
   });

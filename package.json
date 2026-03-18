@@ -1,6 +1,6 @@
 {
   "name": "cvmi",
-  "version": "0.2.5",
+  "version": "0.2.6",
   "description": "ContextVM Interface",
   "type": "module",
   "bin": {
@@ -20,7 +20,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "prepare": "husky",
-    "test": "vitest src",
+    "test": "vitest src/",
     "type-check": "tsc --noEmit",
     "release": "pnpm run build && npm publish",
     "publish:snapshot": "npm version prerelease --preid=snapshot --no-git-tag-version && npm publish --tag snapshot"
@@ -92,7 +92,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@contextvm/sdk": "^0.7.3",
+    "@contextvm/sdk": "^0.7.4",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "nostr-tools": "^2.23.3",
     "xdg-basedir": "^5.1.0",
@@ -105,13 +105,13 @@
     "@types/node": "^22.19.15",
     "gray-matter": "^4.0.3",
     "husky": "^9.1.7",
-    "lint-staged": "^16.3.3",
+    "lint-staged": "^16.4.0",
     "obuild": "^0.4.32",
     "picocolors": "^1.1.1",
     "prettier": "^3.8.1",
     "simple-git": "^3.33.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
+    "vitest": "^4.1.0"
   },
   "engines": {
     "node": ">=20"

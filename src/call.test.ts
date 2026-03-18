@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EncryptionMode } from '@contextvm/sdk';
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { __test__, parseCallArgs, showCallHelp } from './call.ts';
+import {
+  __test__,
+  call,
+  parseCallArgs,
+  resetCreateRemoteClientFactoryForTests,
+  setCreateRemoteClientFactoryForTests,
+  showCallHelp,
+} from './call.ts';
 import { stripAnsi } from './test-utils.ts';
 
 function captureConsoleOutput(render: () => void): string[] {
@@ -21,12 +27,15 @@ function captureConsoleOutput(render: () => void): string[] {
 async function captureConsoleOutputAsync(render: () => Promise<void>): Promise<string[]> {
   const output: string[] = [];
   const log = console.log;
+  const error = console.error;
   console.log = (message?: unknown) => output.push(String(message ?? ''));
+  console.error = (message?: unknown) => output.push(String(message ?? ''));
 
   try {
     await render();
   } finally {
     console.log = log;
+    console.error = error;
   }
 
   return output.map((line) => stripAnsi(line));
@@ -630,14 +639,15 @@ describe('parseCallArgs', () => {
         throw new Error(`EXIT:${code}`);
       });
 
-    vi.mocked(Client).mockImplementation(
-      () =>
-        ({
-          connect: vi.fn().mockResolvedValue(undefined),
+    setCreateRemoteClientFactoryForTests(
+      vi.fn().mockResolvedValue({
+        client: {
           listTools,
           callTool,
-          close,
-        }) as unknown as Client
+        },
+        metadata: {},
+        close,
+      }) as never
     );
 
     const output = await captureConsoleOutputAsync(async () => {
@@ -656,6 +666,7 @@ describe('parseCallArgs', () => {
     expect(output.join('\n')).toContain('cvmi call <server> <tool> [key=value ...] [options]');
     expect(output.join('\n')).toContain('search');
 
+    resetCreateRemoteClientFactoryForTests();
     exitSpy.mockRestore();
   });
 });

@@ -1,5 +1,11 @@
 # cvmi
 
+## 0.2.6
+
+### Patch Changes
+
+- refactor: add ensureRelayRuntime() call in CLI commands that require WebSocket (serve, use, discover, call)
+
 ## 0.2.5
 
 ### Patch Changes
