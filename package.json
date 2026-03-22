@@ -1,6 +1,6 @@
 {
   "name": "cvmi",
-  "version": "0.2.6",
+  "version": "0.2.7",
   "description": "ContextVM Interface",
   "type": "module",
   "bin": {
@@ -92,7 +92,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@contextvm/sdk": "^0.7.4",
+    "@contextvm/sdk": "^0.7.5",
     "@modelcontextprotocol/sdk": "^1.27.1",
     "nostr-tools": "^2.23.3",
     "xdg-basedir": "^5.1.0",

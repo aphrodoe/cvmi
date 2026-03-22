@@ -6,7 +6,6 @@ import {
   parseCallArgs,
   resetCreateRemoteClientFactoryForTests,
   setCreateRemoteClientFactoryForTests,
-  showCallHelp,
 } from './call.ts';
 import { stripAnsi } from './test-utils.ts';
 
@@ -201,11 +200,6 @@ describe('parseCallArgs', () => {
       'Invoke',
       '  Use key=value arguments. Quote the full argument when passing JSON values, e.g. \'targets=["a","b"]\'.',
       '  Use cvmi call nprofile1qqs82p5zxq7f7rw66av5rdy7mjw5dcldxp4eacen2vu2yx37gpx9lgcpr9mhxue69uhhyetvv9ujucm0de6x27r5wekjummjvu4speke <tool> --help for full input/output details.',
-      '',
-      'Examples',
-      '  $ cvmi call nprofile1qqs82p5zxq7f7rw66av5rdy7mjw5dcldxp4eacen2vu2yx37gpx9lgcpr9mhxue69uhhyetvv9ujucm0de6x27r5wekjummjvu4speke <tool> --help',
-      '  $ cvmi call nprofile1qqs82p5zxq7f7rw66av5rdy7mjw5dcldxp4eacen2vu2yx37gpx9lgcpr9mhxue69uhhyetvv9ujucm0de6x27r5wekjummjvu4speke <tool> city=Lisbon',
-      '  $ cvmi call nprofile1qqs82p5zxq7f7rw66av5rdy7mjw5dcldxp4eacen2vu2yx37gpx9lgcpr9mhxue69uhhyetvv9ujucm0de6x27r5wekjummjvu4speke --details',
     ]);
   });
 
@@ -295,11 +289,6 @@ describe('parseCallArgs', () => {
       'Invoke',
       '  Use key=value arguments. Quote the full argument when passing JSON values, e.g. \'targets=["a","b"]\'.',
       '  Use cvmi call relatr <tool> --help for full input/output details.',
-      '',
-      'Examples',
-      '  $ cvmi call relatr <tool> --help',
-      '  $ cvmi call relatr <tool> city=Lisbon',
-      '  $ cvmi call relatr --details',
     ]);
   });
 
@@ -345,10 +334,6 @@ describe('parseCallArgs', () => {
       'Invoke',
       '  Use key=value arguments. Quote the full argument when passing JSON values, e.g. \'targets=["a","b"]\'.',
       '  Use cvmi call relatr <tool> --help for full input/output details.',
-      '',
-      'Examples',
-      '  $ cvmi call relatr <tool> --help',
-      '  $ cvmi call relatr <tool> city=Lisbon',
     ]);
   });
 
@@ -379,11 +364,6 @@ describe('parseCallArgs', () => {
       'Invoke',
       '  Use key=value arguments. Quote the full argument when passing JSON values, e.g. \'targets=["a","b"]\'.',
       '  Use cvmi call nprofile1example <tool> --help for full input/output details.',
-      '',
-      'Examples',
-      '  $ cvmi call nprofile1example <tool> --help',
-      '  $ cvmi call nprofile1example <tool> city=Lisbon',
-      '  $ cvmi call nprofile1example --details',
     ]);
   });
 
@@ -443,11 +423,7 @@ describe('parseCallArgs', () => {
     expect(output.map((line) => stripAnsi(line))).toEqual([
       'Usage',
       '  cvmi call relatr search_profiles [key=value ...] [options]',
-      '',
-      'Capability',
-      '  Name: search_profiles',
-      '  Kind: tool',
-      '  Description: Search profiles',
+      '  Search profiles',
       '',
       'Input',
       '  Pass strings as key=value. Pass arrays/objects as quoted JSON in the value, e.g. \'targets=["a","b"]\'.',
@@ -528,68 +504,7 @@ describe('parseCallArgs', () => {
       'Invoke',
       '  Use key=value arguments. Quote the full argument when passing JSON values, e.g. \'targets=["a","b"]\'.',
       '  Use cvmi call npub1example <tool> --help for full input/output details.',
-      '',
-      'Examples',
-      '  $ cvmi call npub1example <tool> --help',
-      '  $ cvmi call npub1example <tool> city=Lisbon',
-      '  $ cvmi call npub1example --details',
     ]);
-  });
-
-  it('renders configured aliases in call help', async () => {
-    const output = await captureConsoleOutputAsync(async () => {
-      const listAliasesSpy = vi
-        .spyOn(await import('./config/index.ts'), 'listServerAliases')
-        .mockResolvedValue([
-          {
-            name: 'weather',
-            pubkey: 'npub1example',
-            scope: 'project',
-            configPath: '.cvmi.json',
-            description: 'Weather forecasts',
-          },
-          {
-            name: 'search',
-            pubkey: 'npub1example2',
-            scope: 'project',
-            configPath: '.cvmi.json',
-          },
-        ] as any);
-
-      try {
-        await showCallHelp();
-      } finally {
-        listAliasesSpy.mockRestore();
-      }
-    });
-
-    const help = output.join('\n');
-    expect(help).toContain('Description:');
-    expect(help).toContain('Call capabilities on a remote ContextVM server.');
-    expect(help).toContain('cvmi config add <alias> <pubkey>');
-    expect(help).toContain('cvmi config list');
-    expect(help).toContain('Aliases & config:');
-    expect(help).toContain(
-      'Priority: CLI > custom config (--config) > project .cvmi.json > global ~/.cvmi/config.json > env vars'
-    );
-    expect(help).toContain('cvmi call <alias> <tool>');
-    expect(help).toContain(
-      '--details               Show resolved server identity and relay details during inspection'
-    );
-    expect(help).toContain('Tool input:');
-    expect(help).toContain(
-      'Use key=value arguments. Quote the full argument when passing JSON values, e.g. \'filters={"kinds":[1],"limit":10}\''
-    );
-    expect(help).toContain('cvmi call weather get_current --help');
-    expect(help).toContain('cvmi call npub1... <tool> \'filters={"kinds":[1],"limit":10}\'');
-    expect(help).toContain('key=value               Tool input arguments');
-    expect(help).toContain('Configured aliases');
-    expect(help).toContain('• weather — Weather forecasts');
-    expect(help).toContain('• search');
-    expect(help).not.toContain('Calling tools:');
-    expect(help).not.toContain('cvmi config add weather nprofile1example');
-    expect(help).not.toContain('Private key resolution:');
-    expect(help).not.toContain('cvmi call weather --details');
   });
 
   it('builds actionable missing-tool guidance', () => {

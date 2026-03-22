@@ -335,10 +335,6 @@ function printSummaryRow(label: string, value: string): void {
   console.log(`  ${DIM}${label}:${RESET} ${value}`);
 }
 
-function printExampleRow(command: string): void {
-  console.log(`  ${DIM}$${RESET} ${TEXT}${command}${RESET}`);
-}
-
 export const __test__ = {
   renderDefaultResult,
   resolveServerTarget,
@@ -408,7 +404,6 @@ function printServerSummary(
   const shouldShowDetails = options.showServerDetails === true;
   const primaryLabel = resolveServerMetadataLabel(target, metadata);
   const primaryContext = resolveServerMetadataContext(target, metadata);
-
   printSection('Server');
 
   printSummaryRow(target.aliasName || metadata?.name ? 'Name' : 'Identity', primaryLabel);
@@ -456,13 +451,6 @@ function printServerHelp(
   console.log(
     `  ${DIM}Use${RESET} ${TEXT}cvmi call ${target.input} <tool> --help${RESET} ${DIM}for full input/output details.${RESET}`
   );
-  console.log();
-  printSection('Examples');
-  printExampleRow(`cvmi call ${target.input} <tool> --help`);
-  printExampleRow(`cvmi call ${target.input} <tool> city=Lisbon`);
-  if (!options.showServerDetails) {
-    printExampleRow(`cvmi call ${target.input} --details`);
-  }
 }
 
 function printAliasSummaries(aliases: CompactAliasSummary[]): void {
@@ -482,12 +470,8 @@ function printAliasSummaries(aliases: CompactAliasSummary[]): void {
 function printToolHelp(target: ResolvedServerTarget, tool: Tool): void {
   printSection('Usage');
   console.log(`  cvmi call ${target.input} ${tool.name} [key=value ...] [options]`);
-  console.log();
-  printSection('Capability');
-  printSummaryRow('Name', tool.name);
-  printSummaryRow('Kind', 'tool');
   if (tool.description) {
-    printSummaryRow('Description', tool.description);
+    console.log(`  ${tool.description}`);
   }
   console.log();
   printSection('Input');
@@ -688,14 +672,14 @@ export async function showCallHelp(configPath?: string): Promise<void> {
   const aliases = await getCompactAliasSummaries(configPath);
 
   console.log(`
-${BOLD}Usage:${RESET} cvmi call <server> [capability] [key=value ...] [options]
+${BOLD}Usage:${RESET} cvmi call <server> [tool] [key=value ...] [options]
 
 ${BOLD}Description:${RESET}
   Call capabilities on a remote ContextVM server.
 
 ${BOLD}Arguments:${RESET}
   <server>                Server identity (hex, npub, nprofile) or configured alias
-  <capability>            Tool name, or tool:<name> for explicit tool selection
+  <tool>                  Tool name, or tool:<name> for explicit tool selection
   key=value               Tool input arguments
 
 ${BOLD}Options:${RESET}
@@ -726,8 +710,7 @@ ${BOLD}Examples:${RESET}
   ${DIM}$${RESET} cvmi call weather
   ${DIM}$${RESET} cvmi call weather get_current --help
   ${DIM}$${RESET} cvmi call weather get_current city=Lisbon
-  ${DIM}$${RESET} cvmi call npub1... <tool> 'filters={"kinds":[1],"limit":10}'
-  ${DIM}$${RESET} cvmi call weather <tool> --raw
+  ${DIM}$${RESET} cvmi call weather get_current city=Lisbon --raw
   `);
 
   printAliasSummaries(aliases);

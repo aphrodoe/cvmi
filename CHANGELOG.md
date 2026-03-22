@@ -1,5 +1,15 @@
 # cvmi
 
+## 0.2.7
+
+### Patch Changes
+
+- refactor(call): simplify help output and update SDK dependency
+  - Remove examples section from server help display
+  - Condense tool capability display to single description line
+  - Remove printExampleRow function and related test cases
+  - Update @contextvm/sdk from ^0.7.4 to ^0.7.5
+
 ## 0.2.6
 
 ### Patch Changes
