@@ -24,6 +24,8 @@ ContextVM adds:
 - Encryption/decryption
 - Public key-based addressing
 
+Tool definitions, schemas, and structured outputs remain MCP-layer concerns. Features such as `inputSchema`, `outputSchema`, `content`, and `structuredContent` work the same way over ContextVM transports as they do over stdio or HTTP.
+
 ## Comparison with Standard MCP Transports
 
 | Feature               | STDIO | HTTP        | ContextVM  |

@@ -32,7 +32,7 @@ const gateway = new NostrMCPGateway({
   nostrTransportOptions: {
     signer: new PrivateKeySigner(gatewayKey),
     relayHandler: new ApplesauceRelayPool(relays),
-    isPublicServer: true,
+    isAnnouncedServer: true,
     allowedPublicKeys: [trustedClient],
   },
 });

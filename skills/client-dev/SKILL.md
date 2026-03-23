@@ -55,12 +55,8 @@ Connect when you know the server's public key:
 ```typescript
 const transport = new NostrClientTransport({
   signer,
-<<<<<<< feat/call
   relayHandler: relayPool,
   serverPubkey: 'known-server-pubkey',
-=======
-  serverPubkey: "known-server-pubkey",
->>>>>>> main
 });
 ```
 
@@ -101,6 +97,8 @@ await relayPool.subscribe([{ kinds: [SERVER_ANNOUNCEMENT_KIND] }], (event) => {
 4. SDK bootstrap discovery relays when `discoveryRelayUrls` is omitted
 
 This allows leaner client setup when the target server already publishes `kind:10002` metadata.
+
+Use `relayHandler` when you already know the relays you want to operate against or when you want tighter control over relay behavior. Omit it when you want the SDK to resolve relays dynamically from server hints and relay-list metadata.
 
 ## Stateless Mode
 

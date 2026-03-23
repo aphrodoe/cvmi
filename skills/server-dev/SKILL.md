@@ -50,7 +50,7 @@ console.log('Server running on Nostr');
 | `signer`               | `NostrSigner`              | Required. Signs all Nostr events                    |
 | `relayHandler`         | `RelayHandler \| string[]` | Required. Relay connection manager.                 |
 | `serverInfo`           | `ServerInfo`               | Optional. Metadata for announcements                |
-| `isPublicServer`       | `boolean`                  | Publish server announcements. Default: `false`      |
+| `isAnnouncedServer`    | `boolean`                  | Publish server announcements. Default: `false`      |
 | `publishRelayList`     | `boolean`                  | Publish `kind:10002` relay-list metadata            |
 | `relayListUrls`        | `string[]`                 | Explicit relay URLs to advertise                    |
 | `bootstrapRelayUrls`   | `string[]`                 | Extra discoverability publication relays            |
@@ -97,7 +97,7 @@ Enable discovery by publishing replaceable events:
 const transport = new NostrServerTransport({
   signer,
   relayHandler: relayPool,
-  isPublicServer: true,
+  isAnnouncedServer: true,
   publishRelayList: true,
   bootstrapRelayUrls: ['wss://relay.damus.io', 'wss://nos.lol'],
   serverInfo: {
@@ -108,7 +108,7 @@ const transport = new NostrServerTransport({
 });
 ```
 
-Publishes events on kinds 11316-11320 with your server's capabilities. In the TypeScript SDK, `publishRelayList` is independent from `isPublicServer` and defaults to enabled, so relay-list metadata is published unless you explicitly opt out.
+Publishes events on kinds 11316-11320 with your server's capabilities. In the TypeScript SDK, `publishRelayList` is independent from `isAnnouncedServer` and defaults to enabled, so relay-list metadata is published unless you explicitly opt out.
 
 ### Relay-list publication strategy
 
@@ -135,6 +135,45 @@ server.registerTool("personalized", {...}, async (args, extra) => {
   // Use pubkey for personalization, rate limiting, etc.
 });
 ```
+
+## Structured Outputs
+
+Use structured outputs when your server is primarily consumed programmatically and clients benefit from validated machine-readable tool results.
+
+```typescript
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import * as z from 'zod/v4';
+
+const server = new McpServer({
+  name: 'weather-server',
+  version: '1.0.0',
+});
+
+server.registerTool(
+  'get_weather',
+  {
+    description: 'Get weather information for a city',
+    inputSchema: z.object({ city: z.string(), country: z.string() }),
+    outputSchema: z.object({
+      temperature: z.object({ celsius: z.number(), fahrenheit: z.number() }),
+      conditions: z.string(),
+    }),
+  },
+  async () => ({
+    content: [],
+    structuredContent: {
+      temperature: { celsius: 22, fahrenheit: 71.6 },
+      conditions: 'sunny',
+    },
+  })
+);
+```
+
+- Use `outputSchema` when clients should be able to rely on a stable output shape.
+- Return `structuredContent` for machine-readable data.
+- Return `content` only for human-readable output. It does not need to duplicate `structuredContent`.
+- If human-readable output is unnecessary, `content` can be an empty array: `[]`.
+- A good pattern is: concise `content` for people, complete `structuredContent` for code.
 
 ## Server Templates
 
@@ -165,3 +204,4 @@ If you need details on Inspector usage and common debugging steps, read:
 - [`references/transport-config.md`](references/transport-config.md) - All configuration options
 - [`references/security-patterns.md`](references/security-patterns.md) - Access control patterns
 - [`references/gateway-pattern.md`](references/gateway-pattern.md) - Exposing existing servers
+- MCP structured output guide: define `outputSchema`, return `structuredContent`, and keep `content` human-oriented

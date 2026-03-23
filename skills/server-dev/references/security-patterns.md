@@ -9,7 +9,7 @@ new NostrServerTransport({
   signer,
   relayHandler: relayPool,
   allowedPublicKeys: [client1, client2, client3],
-  isPublicServer: false, // No announcements. This is the default
+  isAnnouncedServer: false, // No announcements. This is the default
 });
 ```
 
@@ -21,7 +21,7 @@ Anyone can discover the server, only authorized clients can use it:
 new NostrServerTransport({
   signer,
   relayHandler: relayPool,
-  isPublicServer: true, // Announce to network
+  isAnnouncedServer: true, // Announce to network
   allowedPublicKeys: [client1, client2],
   excludedCapabilities: [
     { method: 'tools/list' }, // Public: anyone can see tools

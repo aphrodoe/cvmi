@@ -119,15 +119,7 @@ Features:
 - RxJS-based observables
 - Persistent subscriptions
 
-### SimpleRelayPool (Deprecated)
-
-Basic relay management:
-
-```typescript
-const pool = new SimpleRelayPool(relayUrls);
-```
-
-Use `ApplesauceRelayPool` for new projects.
+Use `ApplesauceRelayPool` for projects.
 
 For [`NostrClientTransport`](cvmi/skills/typescript-sdk/SKILL.md:22), `relayHandler` can be omitted when the client should resolve operational relays dynamically. The resolution order is:
 

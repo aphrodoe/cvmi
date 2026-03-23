@@ -82,7 +82,9 @@ interface NostrTransportOptions extends BaseNostrTransportOptions {
 ```typescript
 interface NostrServerTransportOptions extends BaseNostrTransportOptions {
   serverInfo?: ServerInfo;
+  /** @deprecated Use isAnnouncedServer instead. */
   isPublicServer?: boolean;
+  isAnnouncedServer?: boolean;
   publishRelayList?: boolean;
   relayListUrls?: string[];
   bootstrapRelayUrls?: string[];
