@@ -21,7 +21,9 @@ interface NostrServerTransportOptions {
 
   // Optional - Access control
   allowedPublicKeys?: string[];
+  isPubkeyAllowed?: (clientPubkey: string) => boolean | Promise<boolean>;
   excludedCapabilities?: CapabilityExclusion[];
+  isCapabilityExcluded?: (exclusion: CapabilityExclusion) => boolean | Promise<boolean>;
 
   // Optional - Features
   injectClientPubkey?: boolean;
@@ -47,6 +49,49 @@ interface ServerInfo {
 interface CapabilityExclusion {
   method: string; // e.g., "tools/call", "tools/list"
   name?: string; // Specific tool/resource name
+}
+```
+
+## Dynamic Authorization Callbacks
+
+### isPubkeyAllowed
+
+```typescript
+isPubkeyAllowed?: (clientPubkey: string) => boolean | Promise<boolean>;
+```
+
+Dynamic authorization callback that receives a client public key and returns `true` to allow the connection. Can be async.
+
+When used with `allowedPublicKeys`, both checks must pass (AND logic):
+- Client must be in `allowedPublicKeys` (if configured)
+- `isPubkeyAllowed` must return `true` (if configured)
+
+Example:
+```typescript
+isPubkeyAllowed: async (clientPubkey) => {
+  const subscription = await db.subscriptions.findByPubkey(clientPubkey);
+  return subscription?.isActive ?? false;
+}
+```
+
+### isCapabilityExcluded
+
+```typescript
+isCapabilityExcluded?: (exclusion: CapabilityExclusion) => boolean | Promise<boolean>;
+```
+
+Dynamic capability exclusion callback that receives a capability pattern and returns `true` to bypass pubkey authorization. Can be async.
+
+Evaluated after static `excludedCapabilities`. Receives the exclusion being checked as a `CapabilityExclusion` object.
+
+Example:
+```typescript
+isCapabilityExcluded: async (exclusion) => {
+  // Check feature flags for temporarily public capabilities
+  if (exclusion.method === 'tools/call') {
+    return await featureFlags.isToolPublic(exclusion.name);
+  }
+  return false;
 }
 ```
 

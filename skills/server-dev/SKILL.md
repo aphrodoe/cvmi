@@ -55,7 +55,9 @@ console.log('Server running on Nostr');
 | `relayListUrls`        | `string[]`                 | Explicit relay URLs to advertise                    |
 | `bootstrapRelayUrls`   | `string[]`                 | Extra discoverability publication relays            |
 | `allowedPublicKeys`    | `string[]`                 | Whitelist client public keys                        |
+| `isPubkeyAllowed`      | `function`                 | Dynamic pubkey authorization callback               |
 | `excludedCapabilities` | `CapabilityExclusion[]`    | Bypass whitelist for specific methods               |
+| `isCapabilityExcluded` | `function`                 | Dynamic capability exclusion callback               |
 | `injectClientPubkey`   | `boolean`                  | Inject client pubkey into `_meta`. Default: `false` |
 | `encryptionMode`       | `EncryptionMode`           | `OPTIONAL`, `REQUIRED`, or `DISABLED`               |
 
@@ -86,6 +88,32 @@ const transport = new NostrServerTransport({
     { method: 'tools/list' }, // Anyone can list tools
     { method: 'tools/call', name: 'public_tool' }, // Specific tool is public
   ],
+});
+```
+
+### Dynamic Authorization
+
+Use callbacks for runtime authorization decisions:
+
+```typescript
+const transport = new NostrServerTransport({
+  signer,
+  relayHandler: relayPool,
+  // Static allowlist (optional)
+  allowedPublicKeys: ['admin-pubkey'],
+  // Dynamic authorization - both must pass when both are configured
+  isPubkeyAllowed: async (clientPubkey) => {
+    const subscription = await db.subscriptions.findByPubkey(clientPubkey);
+    return subscription?.isActive ?? false;
+  },
+  // Dynamic capability exclusions
+  isCapabilityExcluded: async (exclusion) => {
+    // Check feature flags for temporarily public capabilities
+    if (exclusion.method === 'tools/call') {
+      return await featureFlags.isToolPublic(exclusion.name);
+    }
+    return false;
+  },
 });
 ```
 

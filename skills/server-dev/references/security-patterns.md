@@ -74,3 +74,47 @@ async (args, extra) => {
   return result;
 };
 ```
+
+## Pattern 5: Dynamic Authorization with External Checks
+
+Use runtime authorization with external services or databases:
+
+```typescript
+new NostrServerTransport({
+  signer,
+  relayHandler: relayPool,
+  // Optional static allowlist for known trusted clients
+  allowedPublicKeys: ['admin-pubkey', 'service-account'],
+  // Dynamic check - both must pass when both are configured
+  isPubkeyAllowed: async (clientPubkey) => {
+    // Check subscription status in your database
+    const subscription = await db.subscriptions.findByPubkey(clientPubkey);
+    return subscription?.isActive && !subscription.isExpired;
+  },
+});
+```
+
+## Pattern 6: Feature Flag Based Access
+
+Dynamically control which capabilities are public using feature flags:
+
+```typescript
+new NostrServerTransport({
+  signer,
+  relayHandler: relayPool,
+  allowedPublicKeys: ['trusted-client'],
+  // Static exclusions for always-public capabilities
+  excludedCapabilities: [
+    { method: 'tools/list' },
+    { method: 'tools/call', name: 'get_status' },
+  ],
+  // Dynamic exclusions for feature-flagged capabilities
+  isCapabilityExcluded: async (exclusion) => {
+    if (exclusion.method === 'tools/call' && exclusion.name) {
+      // Check if this specific tool is temporarily public
+      return await featureFlags.isToolPublic(exclusion.name);
+    }
+    return false;
+  },
+});
+```
