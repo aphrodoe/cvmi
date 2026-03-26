@@ -126,9 +126,18 @@ For [`NostrClientTransport`](cvmi/skills/typescript-sdk/SKILL.md:22), `relayHand
 1. explicit operational relays from `relayHandler`
 2. relay hints embedded in `nprofile`
 3. CEP-17 relay-list discovery via `discoveryRelayUrls`
-4. SDK bootstrap discovery relays when `discoveryRelayUrls` is omitted
+4. `fallbackOperationalRelayUrls`
+5. SDK bootstrap discovery relays when `discoveryRelayUrls` is omitted
 
 This makes client configuration simpler when the server already publishes `kind:10002` metadata.
+
+Use [`fallbackOperationalRelayUrls`](cvmi/skills/typescript-sdk/SKILL.md) when you want non-authoritative operational relays to be probed in parallel with CEP-17 discovery. This is useful for low-latency local relays or known-good operational relays that should only be used when explicit relays and `nprofile` hints are absent.
+
+Important semantics:
+
+- [`relayHandler`](cvmi/skills/typescript-sdk/SKILL.md:124) remains the explicit authoritative operational relay set.
+- [`discoveryRelayUrls`](cvmi/skills/typescript-sdk/SKILL.md) remains discovery-only.
+- [`fallbackOperationalRelayUrls`](cvmi/skills/typescript-sdk/SKILL.md) is non-authoritative and should not replace published `kind:10002` metadata when that metadata resolves in time.
 
 ## Encryption Modes
 
