@@ -85,7 +85,44 @@ await relayPool.subscribe([{ kinds: [SERVER_ANNOUNCEMENT_KIND] }], (event) => {
 | `discoveryRelayUrls` | `string[]`                 | Optional relay URLs for CEP-17 discovery lookups |
 | `encryptionMode`     | `EncryptionMode`           | `OPTIONAL`, `REQUIRED`, or `DISABLED`            |
 | `isStateless`        | `boolean`                  | Skip initialization handshake. Default: `false`  |
+| `oversizedTransfer`  | `object`                   | CEP-22 oversized payload transfer configuration  |
 | `logLevel`           | `LogLevel`                 | Logging verbosity                                |
+
+### Oversized Transfer
+
+`NostrClientTransport` supports CEP-22 oversized payload transfer automatically.
+
+- enabled by default
+- used when a request is too large for practical relay event limits
+- also used when receiving oversized server responses
+- usually requires no application-level logic
+
+For stateless client-to-server flows, the transport may send `start`, wait for `accept`, and then continue automatically.
+
+Example:
+
+```typescript
+const transport = new NostrClientTransport({
+  signer,
+  serverPubkey: SERVER_PUBKEY,
+  oversizedTransfer: {
+    enabled: true,
+    thresholdBytes: 48_000,
+  },
+});
+```
+
+Disable it only when you explicitly do not want CEP-22 fragmentation:
+
+```typescript
+const transport = new NostrClientTransport({
+  signer,
+  serverPubkey: SERVER_PUBKEY,
+  oversizedTransfer: {
+    enabled: false,
+  },
+});
+```
 
 ### Relay Resolution Order
 

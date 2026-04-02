@@ -60,6 +60,36 @@ console.log('Server running on Nostr');
 | `isCapabilityExcluded` | `function`                 | Dynamic capability exclusion callback               |
 | `injectClientPubkey`   | `boolean`                  | Inject client pubkey into `_meta`. Default: `false` |
 | `encryptionMode`       | `EncryptionMode`           | `OPTIONAL`, `REQUIRED`, or `DISABLED`               |
+| `oversizedTransfer`    | `object`                   | CEP-22 oversized payload transfer configuration     |
+
+## Oversized Transfer
+
+`NostrServerTransport` supports CEP-22 oversized payload transfer automatically.
+
+- enabled by default
+- automatically reassembles oversized incoming client requests
+- automatically fragments oversized server responses when needed
+- does not require server tool handlers to manage chunking directly
+
+Typical configuration:
+
+```typescript
+const transport = new NostrServerTransport({
+  signer,
+  relayHandler: relayPool,
+  oversizedTransfer: {
+    enabled: true,
+  },
+});
+```
+
+Useful reasons to tune it:
+
+- disable the feature entirely with `enabled: false`
+- lower `thresholdBytes` or `chunkSizeBytes` for stricter relay environments
+- tighten receiver `policy` values to reduce memory exposure
+
+This is especially relevant for servers that return large tool results or accept large structured inputs.
 
 ## Access Control
 

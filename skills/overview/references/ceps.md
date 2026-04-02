@@ -99,6 +99,31 @@ Optional ephemeral encrypted wrapper using gift-wrap kind `21059`.
 
 ---
 
+## CEP-22: Oversized Payload Transfer
+
+**Status**: Draft
+
+### Summary
+
+Bounded oversized payload transfer for ContextVM using MCP `notifications/progress` framing.
+
+### Key Points
+
+- Allows requests and responses larger than practical relay event limits to be transferred safely
+- Uses the MCP `progressToken` as the transfer identifier
+- Supports `start`, `accept`, `chunk`, `end`, and `abort` frames
+- Uses SHA-256 digest validation over the exact serialized JSON-RPC message
+- Supports bounded out-of-order reassembly with local receiver policy limits
+- Is enabled by default in the TypeScript SDK transports, with an explicit `oversizedTransfer.enabled` switch
+
+### Practical SDK Semantics
+
+- Most SDK consumers do not handle chunking directly; transports do it automatically
+- Client-to-server stateless bootstrap may require an `accept` handshake before chunks are sent
+- Useful tuning points are whether the feature is enabled, the proactive threshold, chunk size, and receiver policy bounds
+
+---
+
 ## CEP-16: Client Public Key Injection
 
 **Status**: Final

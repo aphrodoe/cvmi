@@ -149,6 +149,39 @@ enum EncryptionMode {
 }
 ```
 
+## Oversized Transfer
+
+The SDK supports CEP-22 oversized payload transfer on both client and server transports.
+
+Important consumer-facing behavior:
+
+- oversized transfer is enabled by default
+- transports automatically fragment and reassemble large payloads
+- most applications do not need to manage chunking directly
+- the main decision is whether to keep it enabled or disable it explicitly
+
+Typical configuration:
+
+```typescript
+const clientTransport = new NostrClientTransport({
+  signer,
+  serverPubkey,
+  oversizedTransfer: {
+    enabled: true,
+  },
+});
+```
+
+Relevant options:
+
+- `enabled`: explicit on/off switch for CEP-22 behavior
+- `thresholdBytes`: proactive fragmentation threshold
+- `chunkSizeBytes`: per-chunk size
+- `acceptTimeoutMs`: client-side wait time for accept-gated flows
+- `policy`: receiver-side limits for bytes, chunks, concurrency, ordering window, and timeout
+
+Use lower thresholds or chunk sizes when relays are more restrictive. Tighten policy values when operating in resource-constrained or adversarial environments.
+
 ## Logging
 
 ```typescript
