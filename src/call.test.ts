@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EncryptionMode } from '@contextvm/sdk';
+import type { Progress } from '@modelcontextprotocol/sdk/types.js';
 import {
   __test__,
   call,
@@ -48,6 +49,9 @@ describe('parseCallArgs', () => {
       'city=Lisbon',
       'days=3',
       '--raw',
+      '--pretty-raw',
+      '--extract',
+      'content[0].data',
       '--debug',
       '--verbose',
       '--relays',
@@ -62,6 +66,8 @@ describe('parseCallArgs', () => {
     expect(parsed.input).toEqual({ city: 'Lisbon', days: 3 });
     expect(parsed.debug).toBe(true);
     expect(parsed.raw).toBe(true);
+    expect(parsed.prettyRaw).toBe(true);
+    expect(parsed.extract).toBe('content[0].data');
     expect(parsed.verbose).toBe(true);
     expect(parsed.relays).toEqual(['wss://relay.example.com', 'wss://relay.two']);
     expect(parsed.encryption).toBe(EncryptionMode.REQUIRED);
@@ -97,6 +103,33 @@ describe('parseCallArgs', () => {
     expect(parsed.help).toBe(true);
     expect(parsed.server).toBeUndefined();
     expect(parsed.unknownFlags).toEqual([]);
+  });
+
+  it('extracts nested result values with array access', () => {
+    expect(
+      __test__.extractResultValue(
+        {
+          content: [
+            {
+              data: 'aGVsbG8=',
+            },
+          ],
+        },
+        'content[0].data'
+      )
+    ).toBe('aGVsbG8=');
+  });
+
+  it('rejects invalid extract paths', () => {
+    expect(() => __test__.extractResultValue({ content: [] }, 'content[')).toThrow(
+      'Invalid extract path: content['
+    );
+  });
+
+  it('rejects missing extract paths', () => {
+    expect(() => __test__.extractResultValue({ content: [] }, 'content[0].data')).toThrow(
+      'Extract path not found: content[0].data'
+    );
   });
 
   it('renders structuredContent in a readable format by default', () => {
@@ -234,9 +267,9 @@ describe('parseCallArgs', () => {
         'weather'
       )
     ).toThrowErrorMatchingInlineSnapshot(`
-      [Error: Unknown server alias or invalid server identity: weather
+      "Unknown server alias or invalid server identity: weather
       Run \`cvmi config list\` to see configured aliases.
-      Or pass a direct server identity in hex, npub, or nprofile format.]
+      Or pass a direct server identity in hex, npub, or nprofile format."
     `);
   });
 
@@ -583,5 +616,264 @@ describe('parseCallArgs', () => {
 
     resetCreateRemoteClientFactoryForTests();
     exitSpy.mockRestore();
+  });
+
+  it('enables MCP progress handling by default for tool calls', async () => {
+    const listTools = vi.fn().mockResolvedValue({
+      tools: [
+        {
+          name: 'read_media_file',
+          description: 'Read media',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              path: { type: 'string' },
+            },
+            required: ['path'],
+          },
+        },
+      ],
+    });
+    const callTool = vi.fn().mockResolvedValue({ content: [] });
+    const close = vi.fn().mockResolvedValue(undefined);
+
+    setCreateRemoteClientFactoryForTests(
+      vi.fn().mockResolvedValue({
+        client: {
+          listTools,
+          callTool,
+        },
+        metadata: {},
+        close,
+      }) as never
+    );
+
+    await call(
+      '750682303c9f0ddad75941b49edc9d46e3ed306b9ee3335338a21a3e404c5fa3',
+      'read_media_file',
+      { path: './ot-demo/img.jpg' },
+      { privateKey: 'nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqj4xw9h' }
+    );
+
+    expect(callTool).toHaveBeenCalledWith(
+      {
+        name: 'read_media_file',
+        arguments: { path: './ot-demo/img.jpg' },
+      },
+      undefined,
+      expect.objectContaining({
+        onprogress: expect.any(Function),
+        resetTimeoutOnProgress: true,
+      })
+    );
+
+    resetCreateRemoteClientFactoryForTests();
+  });
+
+  it('prints progress updates when verbose mode is enabled', async () => {
+    const listTools = vi.fn().mockResolvedValue({
+      tools: [
+        {
+          name: 'read_media_file',
+          description: 'Read media',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              path: { type: 'string' },
+            },
+            required: ['path'],
+          },
+        },
+      ],
+    });
+    const callTool = vi.fn().mockImplementation(
+      async (
+        _request: unknown,
+        _resultSchema: unknown,
+        options?: {
+          onprogress?: (progress: Progress) => void;
+          resetTimeoutOnProgress?: boolean;
+        }
+      ) => {
+        options?.onprogress?.({
+          progress: 2,
+          total: 4,
+          message: 'starting oversized transfer',
+        });
+        return { content: [] };
+      }
+    );
+    const close = vi.fn().mockResolvedValue(undefined);
+
+    setCreateRemoteClientFactoryForTests(
+      vi.fn().mockResolvedValue({
+        client: {
+          listTools,
+          callTool,
+        },
+        metadata: {},
+        close,
+      }) as never
+    );
+
+    const output = await captureConsoleOutputAsync(async () => {
+      await call(
+        '750682303c9f0ddad75941b49edc9d46e3ed306b9ee3335338a21a3e404c5fa3',
+        'read_media_file',
+        { path: './ot-demo/img.jpg' },
+        {
+          privateKey: 'nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqj4xw9h',
+          verbose: true,
+        }
+      );
+    });
+
+    expect(output.join('\n')).toContain('Progress: 2/4 starting oversized transfer');
+
+    resetCreateRemoteClientFactoryForTests();
+  });
+
+  it('prints compact raw JSON by default', async () => {
+    const listTools = vi.fn().mockResolvedValue({
+      tools: [
+        {
+          name: 'read_media_file',
+          description: 'Read media',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              path: { type: 'string' },
+            },
+            required: ['path'],
+          },
+        },
+      ],
+    });
+    const callTool = vi.fn().mockResolvedValue({ content: [{ data: 'abc' }] });
+    const close = vi.fn().mockResolvedValue(undefined);
+
+    setCreateRemoteClientFactoryForTests(
+      vi.fn().mockResolvedValue({
+        client: {
+          listTools,
+          callTool,
+        },
+        metadata: {},
+        close,
+      }) as never
+    );
+
+    const output = await captureConsoleOutputAsync(async () => {
+      await call(
+        '750682303c9f0ddad75941b49edc9d46e3ed306b9ee3335338a21a3e404c5fa3',
+        'read_media_file',
+        { path: './ot-demo/img.jpg' },
+        {
+          privateKey: 'nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqj4xw9h',
+          raw: true,
+        }
+      );
+    });
+
+    expect(output).toContain('{"content":[{"data":"abc"}]}');
+
+    resetCreateRemoteClientFactoryForTests();
+  });
+
+  it('prints pretty raw JSON when requested', async () => {
+    const listTools = vi.fn().mockResolvedValue({
+      tools: [
+        {
+          name: 'read_media_file',
+          description: 'Read media',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              path: { type: 'string' },
+            },
+            required: ['path'],
+          },
+        },
+      ],
+    });
+    const callTool = vi.fn().mockResolvedValue({ content: [{ data: 'abc' }] });
+    const close = vi.fn().mockResolvedValue(undefined);
+
+    setCreateRemoteClientFactoryForTests(
+      vi.fn().mockResolvedValue({
+        client: {
+          listTools,
+          callTool,
+        },
+        metadata: {},
+        close,
+      }) as never
+    );
+
+    const output = await captureConsoleOutputAsync(async () => {
+      await call(
+        '750682303c9f0ddad75941b49edc9d46e3ed306b9ee3335338a21a3e404c5fa3',
+        'read_media_file',
+        { path: './ot-demo/img.jpg' },
+        {
+          privateKey: 'nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqj4xw9h',
+          raw: true,
+          prettyRaw: true,
+        }
+      );
+    });
+
+    expect(output.join('\n')).toContain('  "content": [');
+
+    resetCreateRemoteClientFactoryForTests();
+  });
+
+  it('prints extracted string values without JSON encoding', async () => {
+    const listTools = vi.fn().mockResolvedValue({
+      tools: [
+        {
+          name: 'read_media_file',
+          description: 'Read media',
+          inputSchema: {
+            type: 'object',
+            properties: {
+              path: { type: 'string' },
+            },
+            required: ['path'],
+          },
+        },
+      ],
+    });
+    const callTool = vi.fn().mockResolvedValue({
+      content: [{ data: 'aGVsbG8=' }],
+    });
+    const close = vi.fn().mockResolvedValue(undefined);
+
+    setCreateRemoteClientFactoryForTests(
+      vi.fn().mockResolvedValue({
+        client: {
+          listTools,
+          callTool,
+        },
+        metadata: {},
+        close,
+      }) as never
+    );
+
+    const output = await captureConsoleOutputAsync(async () => {
+      await call(
+        '750682303c9f0ddad75941b49edc9d46e3ed306b9ee3335338a21a3e404c5fa3',
+        'read_media_file',
+        { path: './ot-demo/img.jpg' },
+        {
+          privateKey: 'nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqj4xw9h',
+          extract: 'content[0].data',
+        }
+      );
+    });
+
+    expect(output).toContain('aGVsbG8=');
+
+    resetCreateRemoteClientFactoryForTests();
   });
 });

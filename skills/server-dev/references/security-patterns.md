@@ -104,10 +104,7 @@ new NostrServerTransport({
   relayHandler: relayPool,
   allowedPublicKeys: ['trusted-client'],
   // Static exclusions for always-public capabilities
-  excludedCapabilities: [
-    { method: 'tools/list' },
-    { method: 'tools/call', name: 'get_status' },
-  ],
+  excludedCapabilities: [{ method: 'tools/list' }, { method: 'tools/call', name: 'get_status' }],
   // Dynamic exclusions for feature-flagged capabilities
   isCapabilityExcluded: async (exclusion) => {
     if (exclusion.method === 'tools/call' && exclusion.name) {

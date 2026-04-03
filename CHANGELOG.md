@@ -1,5 +1,23 @@
 # cvmi
 
+## 0.2.8-next.2
+
+### Patch Changes
+
+- Add field extraction and flexible raw output modes to `cvmi call`.
+  - add `--extract <path>` for printing a targeted value such as `content[0].data`
+  - make `--raw` emit compact JSON by default for machine-friendly pipelines
+  - add `--pretty-raw` for indented raw JSON output when human readability is preferred
+
+## 0.2.8-next.1
+
+### Patch Changes
+
+- Enable MCP progress handling by default in `cvmi call`.
+  - always pass an `onprogress` handler so MCP requests get a progress token automatically
+  - enable timeout resets on progress updates for long-running and oversized transfers
+  - print progress updates during tool calls when `--verbose` is enabled
+
 ## 0.2.8-next.0
 
 ### Patch Changes

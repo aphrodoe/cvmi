@@ -1,5 +1,5 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import type { Tool } from '@modelcontextprotocol/sdk/types.js';
+import type { Progress, Tool } from '@modelcontextprotocol/sdk/types.js';
 import { PrivateKeySigner, EncryptionMode } from '@contextvm/sdk';
 import { NostrClientTransport } from '@contextvm/sdk/transport';
 import { nip19 } from 'nostr-tools';
@@ -34,6 +34,8 @@ export interface CallOptions {
   debug?: boolean;
   verbose?: boolean;
   raw?: boolean;
+  prettyRaw?: boolean;
+  extract?: string;
   help?: boolean;
 }
 
@@ -44,6 +46,8 @@ export interface ParseCallResult {
   debug: boolean;
   verbose: boolean;
   raw: boolean;
+  prettyRaw: boolean;
+  extract: string | undefined;
   help: boolean;
   privateKey: string | undefined;
   relays: string[] | undefined;
@@ -76,6 +80,8 @@ interface CompactAliasSummary {
   context?: string;
 }
 
+type ExtractPathSegment = string | number;
+
 function coerceValue(value: string): unknown {
   if (value === 'true') return true;
   if (value === 'false') return false;
@@ -102,6 +108,8 @@ export function parseCallArgs(args: string[]): ParseCallResult {
     debug: false,
     verbose: false,
     raw: false,
+    prettyRaw: false,
+    extract: undefined,
     help: false,
     privateKey: undefined,
     relays: undefined,
@@ -133,6 +141,11 @@ export function parseCallArgs(args: string[]): ParseCallResult {
       result.verbose = true;
     } else if (arg === '--raw') {
       result.raw = true;
+    } else if (arg === '--pretty-raw') {
+      result.raw = true;
+      result.prettyRaw = true;
+    } else if (arg === '--extract') {
+      result.extract = consumeValue('--extract');
     } else if (arg === '--help' || arg === '-h') {
       result.help = true;
     } else if (arg === '--private-key') {
@@ -252,6 +265,126 @@ function logVerbose(enabled: boolean | undefined, message: string): void {
   }
 }
 
+function formatProgressValue(progress: Progress): string {
+  if (typeof progress.total === 'number' && Number.isFinite(progress.total)) {
+    return `${progress.progress}/${progress.total}`;
+  }
+
+  return String(progress.progress);
+}
+
+function createProgressHandler(
+  enabled: boolean | undefined
+): ((progress: Progress) => void) | undefined {
+  if (!enabled) {
+    return () => {};
+  }
+
+  return (progress: Progress): void => {
+    const summary = formatProgressValue(progress);
+    const message = typeof progress.message === 'string' ? ` ${progress.message}` : '';
+    console.log(`${DIM}Progress:${RESET} ${summary}${message}`);
+  };
+}
+
+function parseExtractPath(path: string): ExtractPathSegment[] {
+  const segments: ExtractPathSegment[] = [];
+  let current = '';
+  let previousWasIndex = false;
+
+  for (let index = 0; index < path.length; index++) {
+    const char = path[index];
+
+    if (char === '.') {
+      if (!current) {
+        if (previousWasIndex) {
+          previousWasIndex = false;
+          continue;
+        }
+
+        throw new Error(`Invalid extract path: ${path}`);
+      }
+      segments.push(current);
+      current = '';
+      previousWasIndex = false;
+      continue;
+    }
+
+    if (char === '[') {
+      if (current) {
+        segments.push(current);
+        current = '';
+      }
+
+      const closeIndex = path.indexOf(']', index);
+      if (closeIndex === -1) {
+        throw new Error(`Invalid extract path: ${path}`);
+      }
+
+      const token = path.slice(index + 1, closeIndex);
+      if (!/^\d+$/.test(token)) {
+        throw new Error(`Invalid extract path: ${path}`);
+      }
+
+      segments.push(Number(token));
+      previousWasIndex = true;
+      index = closeIndex;
+      continue;
+    }
+
+    current += char;
+    previousWasIndex = false;
+  }
+
+  if (current) {
+    segments.push(current);
+  }
+
+  if (segments.length === 0) {
+    throw new Error(`Invalid extract path: ${path}`);
+  }
+
+  return segments;
+}
+
+function extractResultValue(value: unknown, path: string): unknown {
+  const segments = parseExtractPath(path);
+  let current: unknown = value;
+
+  for (const segment of segments) {
+    if (typeof segment === 'number') {
+      if (!Array.isArray(current) || segment >= current.length) {
+        throw new Error(`Extract path not found: ${path}`);
+      }
+      current = current[segment];
+      continue;
+    }
+
+    if (typeof current !== 'object' || current === null || !(segment in current)) {
+      throw new Error(`Extract path not found: ${path}`);
+    }
+
+    current = (current as Record<string, unknown>)[segment];
+  }
+
+  return current;
+}
+
+function printRawResult(result: unknown, pretty: boolean): void {
+  console.log(JSON.stringify(result, null, pretty ? 2 : undefined));
+}
+
+function printExtractedResult(result: unknown, path: string): void {
+  const extracted = extractResultValue(result, path);
+
+  if (typeof extracted === 'string') {
+    console.log(extracted);
+    return;
+  }
+
+  printRawResult(extracted, false);
+}
+
 function formatSchemaTypeCompact(schema: Record<string, unknown> | undefined): string {
   if (!schema) return 'unknown';
 
@@ -341,6 +474,7 @@ export const __test__ = {
   assertKnownServerInput,
   buildMissingToolError,
   formatToolInputSignature,
+  extractResultValue,
   printServerHelp,
   printToolHelp,
   printAliasSummaries,
@@ -644,13 +778,25 @@ export async function call(
     }
 
     logVerbose(options.verbose, `Calling tool: ${toolName}`);
-    const result = await remote.client.callTool({
-      name: toolName,
-      arguments: input,
-    });
+    const result = await remote.client.callTool(
+      {
+        name: toolName,
+        arguments: input,
+      },
+      undefined,
+      {
+        onprogress: createProgressHandler(options.verbose),
+        resetTimeoutOnProgress: true,
+      }
+    );
+
+    if (options.extract) {
+      printExtractedResult(result, options.extract);
+      return;
+    }
 
     if (options.raw) {
-      console.log(JSON.stringify(result, null, 2));
+      printRawResult(result, options.prettyRaw ?? false);
       return;
     }
 
@@ -690,7 +836,9 @@ ${BOLD}Options:${RESET}
   --stateless             Enable stateless transport mode (default)
   --stateful              Disable stateless transport mode
   --details               Show resolved server identity and relay details during inspection
-  --raw                   Print raw JSON result
+  --raw                   Print raw JSON result as compact JSON
+  --pretty-raw            Print raw JSON result with indentation
+  --extract <path>        Print a specific result field, e.g. content[0].data
   --verbose               Enable cvmi progress logging
   --debug                 Enable SDK debug logging
   --help, -h              Show this help message
@@ -711,6 +859,7 @@ ${BOLD}Examples:${RESET}
   ${DIM}$${RESET} cvmi call weather get_current --help
   ${DIM}$${RESET} cvmi call weather get_current city=Lisbon
   ${DIM}$${RESET} cvmi call weather get_current city=Lisbon --raw
+  ${DIM}$${RESET} cvmi call files read_media_file path=./img.jpg --extract content[0].data
   `);
 
   printAliasSummaries(aliases);
