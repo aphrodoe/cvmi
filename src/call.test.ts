@@ -266,11 +266,10 @@ describe('parseCallArgs', () => {
         },
         'weather'
       )
-    ).toThrowErrorMatchingInlineSnapshot(`
-      "Unknown server alias or invalid server identity: weather
-      Run \`cvmi config list\` to see configured aliases.
-      Or pass a direct server identity in hex, npub, or nprofile format."
-    `);
+    )
+      .toThrowErrorMatchingInlineSnapshot(`[Error: Unknown server alias or invalid server identity: weather
+Run \`cvmi config list\` to see configured aliases.
+Or pass a direct server identity in hex, npub, or nprofile format.]`);
   });
 
   it('accepts direct server identities without requiring an alias', () => {
@@ -579,7 +578,9 @@ describe('parseCallArgs', () => {
         },
       ],
     });
-    const callTool = vi.fn();
+    const callTool = vi
+      .fn()
+      .mockRejectedValue(new Error('Tool not found: height of the eiffel tower'));
     const close = vi.fn().mockResolvedValue(undefined);
     const exitSpy = vi
       .spyOn(process, 'exit')
@@ -609,7 +610,7 @@ describe('parseCallArgs', () => {
       ).rejects.toThrow('EXIT:1');
     });
 
-    expect(callTool).not.toHaveBeenCalled();
+    expect(callTool).toHaveBeenCalledTimes(1);
     expect(output.join('\n')).toContain('Tool not found: height of the eiffel tower');
     expect(output.join('\n')).toContain('cvmi call <server> <tool> [key=value ...] [options]');
     expect(output.join('\n')).toContain('search');
@@ -655,6 +656,7 @@ describe('parseCallArgs', () => {
       { privateKey: 'nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqj4xw9h' }
     );
 
+    expect(listTools).not.toHaveBeenCalled();
     expect(callTool).toHaveBeenCalledWith(
       {
         name: 'read_media_file',
@@ -728,6 +730,7 @@ describe('parseCallArgs', () => {
       );
     });
 
+    expect(listTools).not.toHaveBeenCalled();
     expect(output.join('\n')).toContain('Progress: 2/4 starting oversized transfer');
 
     resetCreateRemoteClientFactoryForTests();
@@ -775,6 +778,7 @@ describe('parseCallArgs', () => {
       );
     });
 
+    expect(listTools).not.toHaveBeenCalled();
     expect(output).toContain('{"content":[{"data":"abc"}]}');
 
     resetCreateRemoteClientFactoryForTests();
@@ -823,6 +827,7 @@ describe('parseCallArgs', () => {
       );
     });
 
+    expect(listTools).not.toHaveBeenCalled();
     expect(output.join('\n')).toContain('  "content": [');
 
     resetCreateRemoteClientFactoryForTests();
@@ -872,6 +877,7 @@ describe('parseCallArgs', () => {
       );
     });
 
+    expect(listTools).not.toHaveBeenCalled();
     expect(output).toContain('aGVsbG8=');
 
     resetCreateRemoteClientFactoryForTests();

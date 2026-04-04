@@ -1,5 +1,45 @@
 # cvmi
 
+## 0.2.8
+
+### Patch Changes
+
+- 172aa22: Add field extraction and flexible raw output modes to `cvmi call`.
+  - add `--extract <path>` for printing a targeted value such as `content[0].data`
+  - make `--raw` emit compact JSON by default for machine-friendly pipelines
+  - add `--pretty-raw` for indented raw JSON output when human readability is preferred
+
+- normal calls are now single-roundtrip, while error recovery still lists tools when needed.
+- chore: bump sdk version
+- chore: bump sdk version
+- 172aa22: Enable MCP progress handling by default in `cvmi call`.
+  - always pass an `onprogress` handler so MCP requests get a progress token automatically
+  - enable timeout resets on progress updates for long-running and oversized transfers
+  - print progress updates during tool calls when `--verbose` is enabled
+
+- d5c366b: Improve `cvmi` for the next prerelease with transport and CLI updates.
+  - add fallback operational relay support for Nostr client transport flows
+  - update server development and configuration documentation
+  - simplify `call` help output and align the SDK dependency with the latest prerelease
+
+## 0.2.8-next.5
+
+### Patch Changes
+
+- normal calls are now single-roundtrip, while error recovery still lists tools when needed.
+
+## 0.2.8-next.4
+
+### Patch Changes
+
+- chore: bump sdk version
+
+## 0.2.8-next.3
+
+### Patch Changes
+
+- chore: bump sdk version
+
 ## 0.2.8-next.2
 
 ### Patch Changes

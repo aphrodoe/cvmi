@@ -1,8 +1,0 @@
-{
-  "mode": "pre",
-  "tag": "next",
-  "initialVersions": {
-    "cvmi": "0.2.7"
-  },
-  "changesets": ["bumpy-cobras-divide", "wacky-hounds-grow", "warm-trains-share"]
-}

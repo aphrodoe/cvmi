@@ -710,6 +710,14 @@ function printMissingToolGuidance(
   printServerHelp(target, tools, metadata, options);
 }
 
+function isMissingToolInvocationError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return /tool.+not found|unknown tool|method not found|-32601/i.test(error.message);
+}
+
 export async function call(
   serverArg: string | undefined,
   capabilityArg: string | undefined,
@@ -769,26 +777,30 @@ export async function call(
       return;
     }
 
-    logVerbose(options.verbose, 'Discovering tools...');
-    const toolsResult = await remote.client.listTools();
-    const tool = toolsResult.tools.find((entry) => entry.name === toolName);
-    if (!tool) {
+    logVerbose(options.verbose, `Calling tool: ${toolName}`);
+    let result;
+    try {
+      result = await remote.client.callTool(
+        {
+          name: toolName,
+          arguments: input,
+        },
+        undefined,
+        {
+          onprogress: createProgressHandler(options.verbose),
+          resetTimeoutOnProgress: true,
+        }
+      );
+    } catch (error) {
+      if (!isMissingToolInvocationError(error)) {
+        throw error;
+      }
+
+      logVerbose(options.verbose, 'Discovering tools...');
+      const toolsResult = await remote.client.listTools();
       printMissingToolGuidance(target, capabilityArg, toolsResult.tools, remote.metadata, options);
       process.exit(1);
     }
-
-    logVerbose(options.verbose, `Calling tool: ${toolName}`);
-    const result = await remote.client.callTool(
-      {
-        name: toolName,
-        arguments: input,
-      },
-      undefined,
-      {
-        onprogress: createProgressHandler(options.verbose),
-        resetTimeoutOnProgress: true,
-      }
-    );
 
     if (options.extract) {
       printExtractedResult(result, options.extract);
